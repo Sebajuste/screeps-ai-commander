@@ -1,0 +1,63 @@
+{
+  "main": {
+    "token": "d9ea51fd-d916-447a-9cd5-cd04e422fa18",
+    "protocol": "https",
+    "hostname": "screeps.com",
+    "port": 443,
+    "path": "/",
+    "branch": "main"
+  },
+  "sim": {
+    "token": "d9ea51fd-d916-447a-9cd5-cd04e422fa18",
+    "protocol": "https",
+    "hostname": "screeps.com",
+    "port": 443,
+    "path": "/",
+    "branch": "sim"
+  },
+  "localserver": {
+    "email": "sebajuste@hotmail.com",
+    "password": "Napoleon23",
+    "protocol": "http",
+    "hostname": "127.0.0.1",
+    "port": 21025,
+    "path": "/",
+    "branch": "main"
+  },
+  "pserver-main": {
+    "email": "sebajuste@hotmail.com",
+    "password": "Napoleon23",
+    "protocol": "http",
+    "hostname": "151.80.155.64",
+    "port": 21025,
+    "path": "/",
+    "branch": "main"
+  },
+  "pserver-sim": {
+    "email": "sebajuste@hotmail.com",
+    "password": "Napoleon23",
+    "protocol": "http",
+    "hostname": "151.80.155.64",
+    "port": 21025,
+    "path": "/",
+    "branch": "sim"
+  },
+  "iklem-sim": {
+    "protocol": "http",
+    "hostname": "screeps.iklem.fr",
+    "port": 21025,
+    "email": "sebajuste@hotmail.com",
+    "password": "tb6Jqfhj",
+    "path": "/",
+    "branch": "sim"
+  },
+  "iklem-main": {
+    "protocol": "http",
+    "hostname": "screeps.iklem.fr",
+    "port": 21025,
+    "email": "sebajuste@hotmail.com",
+    "password": "tb6Jqfhj",
+    "path": "/",
+    "branch": "main"
+  }
+}

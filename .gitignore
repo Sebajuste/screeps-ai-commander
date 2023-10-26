@@ -1,0 +1,9 @@
+# dependencies
+/node_modules
+
+#outputs
+/tsc-out
+/dist
+
+# config
+.screeps.json

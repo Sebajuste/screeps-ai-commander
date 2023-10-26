@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "module": "esnext",
+    "lib": [
+      "esnext"
+    ],
+    "target": "es2018",
+    "moduleResolution": "node",
+    "newLine": "CRLF",
+    "outDir": "tsc-out",
+    "baseUrl": "src/",
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "allowUnusedLabels": true,
+    "allowSyntheticDefaultImports": true,
+    "allowUnreachableCode": false,
+    "removeComments": true
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ],
+  "typedocOptions": {
+    "mode": "file",
+    "out": "../docs",
+    "ignoreCompilerErrors": true,
+    "excludeNotExported": true,
+    "exclude": "**/*+(Assimilator).ts",
+    "readme": "none"
+  }
+}
