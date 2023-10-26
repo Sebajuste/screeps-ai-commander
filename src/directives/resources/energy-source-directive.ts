@@ -4,12 +4,16 @@ import { Directive } from "directives/Directive";
 import { Hub } from "hub/Hub";
 import _ from "lodash";
 import { Mem, MemCacheObject } from "memory/Memory";
+import { deserializePos, serializePos } from "task/task-initializer";
 import { log } from "utils/log";
 import { findClosestByLimitedRange } from "utils/util-pos";
 
 
 
 interface EnergySourceMemory {
+  containerPos?: string;
+  linkPos?: string;
+
   container?: Id<_HasId>;
   link?: Id<_HasId>;
   constructionSite?: Id<_HasId>;
@@ -29,18 +33,48 @@ export class EnergySourceDirective extends Directive {
     hauler: HaulerDaemon
   };
 
-  containerCache: MemCacheObject<StructureContainer>;
-  constructionSiteCache: MemCacheObject<ConstructionSite>;
+  containerPos: RoomPosition;
+  linkPos: RoomPosition;
+
+  private _containerCache: MemCacheObject<StructureContainer>;
+  private _linkCache: MemCacheObject<StructureLink>;
+  private _constructionSiteCache: MemCacheObject<ConstructionSite>;
 
   constructor(commander: Commander, flag: Flag, hub: Hub) {
     super(commander, flag, hub, true);
     this.memory = Mem.wrap(flag.memory, 'energy_source', {});
-    this.containerCache = new MemCacheObject(this.memory, 'container');
-    this.constructionSiteCache = new MemCacheObject(this.memory, 'construction_site');
+
+    this._containerCache = new MemCacheObject(this.memory, 'container');
+    this._linkCache = new MemCacheObject<StructureLink>(this.memory, 'link');
+    this._constructionSiteCache = new MemCacheObject(this.memory, 'construction_site');
+
+    let path = null;
+
+    if (!this.memory.containerPos || !this.memory.containerPos) {
+      path = this.pos.findPathTo(this.hub.pos, { ignoreCreeps: true });
+    }
+
+    if (!this.memory.containerPos && path) {
+      const step = path[0];
+      this.memory.containerPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
+    }
+
+    if (!this.memory.linkPos && path) {
+      const stepIndex = Math.min(1, path.length);
+      const step = path[stepIndex];
+      this.memory.linkPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
+    }
+
+    this.containerPos = deserializePos(this.memory.containerPos!);
+    this.linkPos = deserializePos(this.memory.linkPos!);
   }
 
   get container(): StructureContainer | null {
-    return this.containerCache.value;
+    return this._containerCache.value;
+  }
+
+  get link(): StructureLink | null {
+    return this._linkCache.value;
   }
 
   spawnDaemons(): void {
@@ -52,8 +86,8 @@ export class EnergySourceDirective extends Directive {
       if (!this.daemons.harvest) {
         this.daemons.harvest = new HarvestDaemon(this.hub, this, source, priority);
       }
-      if (!this.daemons.hauler) {
-        this.daemons.hauler = new HaulerDaemon(this.hub, this, priority, 1);
+      if (!this.daemons.hauler && !this._linkCache.isValid()) {
+        this.daemons.hauler = new HaulerDaemon(this.hub, this, priority);
       }
     } else {
       log.error(`${this.print} No source available`)
@@ -62,16 +96,25 @@ export class EnergySourceDirective extends Directive {
 
   private buildHandler() {
 
+    if (this.pos.roomName != this.hub.room.name) {
+      return;
+    }
+
     if (this.hub.level < EnergySourceDirective.Setting.rclContainer) {
       return;
     }
 
-    if (!this.containerCache.value && !this.constructionSiteCache.value) {
+    if (!this._containerCache.value && !this._constructionSiteCache.value) {
       // Create Container if required
-      const path = this.pos.findPathTo(this.hub.pos, { ignoreCreeps: true });
-      const step = path[0];
+      const r = this.containerPos.createConstructionSite(STRUCTURE_CONTAINER);
+      if (r != OK) {
+        log.warning(`${this.print} cannot create construction site ${r}`);
+      }
+    }
 
-      const r = this.room.createConstructionSite(step.x, step.y, STRUCTURE_CONTAINER);
+    if (!this._linkCache.value && !this._constructionSiteCache.value && this.hub.links.length >= 1) {
+      // Create Link if required
+      const r = this.linkPos.createConstructionSite(STRUCTURE_LINK);
       if (r != OK) {
         log.warning(`${this.print} cannot create construction site ${r}`);
       }
@@ -85,20 +128,26 @@ export class EnergySourceDirective extends Directive {
 
     this.memory = Mem.wrap(this.flag.memory, 'energy_source', {});
 
-    this.constructionSiteCache.refresh(this.memory);
-    this.containerCache.refresh(this.memory);
+    this._containerCache.refresh(this.memory);
+    this._linkCache.refresh(this.memory);
+    this._constructionSiteCache.refresh(this.memory);
+
 
     if (!Game.rooms[this.pos.roomName]) {
       // Room unreachable
       return;
     }
 
-    if (!this.containerCache.value) {
-      this.containerCache.value = findClosestByLimitedRange(this.pos, this.hub.containersByRooms[this.room.name] ?? [], 5);
+    if (!this._containerCache.value) {
+      this._containerCache.value = findClosestByLimitedRange(this.pos, this.hub.containersByRooms[this.room.name] ?? [], 5);
     }
 
-    if (!this.constructionSiteCache.value) {
-      this.constructionSiteCache.value = findClosestByLimitedRange(this.pos, this.hub.constructionSitesByRooms[this.room.name] ?? [], 5);
+    if (!this._linkCache.isValid()) {
+      this._linkCache.value = findClosestByLimitedRange(this.pos, this.hub.links, 5);
+    }
+
+    if (!this._constructionSiteCache.value) {
+      this._constructionSiteCache.value = findClosestByLimitedRange(this.pos, this.hub.constructionSitesByRooms[this.room.name] ?? [], 5);
     }
 
 
@@ -111,7 +160,13 @@ export class EnergySourceDirective extends Directive {
       return;
     }
 
-    // this.buildHandler();
+    if (this._linkCache.isValid() && this.daemons.hauler) {
+      this.daemons.hauler.maxQuantity = 0;
+    } else if (this.daemons.hauler) {
+      this.daemons.hauler.maxQuantity = 1;
+    }
+
+    this.buildHandler();
   }
 
   run(): void {

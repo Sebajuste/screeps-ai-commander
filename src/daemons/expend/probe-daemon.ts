@@ -10,7 +10,7 @@ import { Mem } from "memory/Memory";
 import { registerOutpost } from "room/room-analyse";
 import { Settings } from "settings";
 import { log } from "utils/log";
-import { getMultiRoomRange, getRoomRange } from "utils/util-pos";
+import { getRoomRange } from "utils/util-pos";
 
 interface ExplorerMemory {
   nextRooms: string[];
@@ -20,14 +20,14 @@ const DEFAULT_EXPLORER_MEMORY = {
   nextRooms: []
 } as ExplorerMemory;
 
-export class ScoutDaemon extends Daemon {
+export class ProbeDaemon extends Daemon {
 
   explorerMemory: ExplorerMemory;
 
   nextRooms: string[];
 
   constructor(hub: Hub, initializer: Actor) {
-    super(hub, initializer, 'scout');
+    super(hub, initializer, 'probe');
     this.explorerMemory = Mem.wrap(initializer.memory, 'explorer', DEFAULT_EXPLORER_MEMORY);
     this.nextRooms = this.explorerMemory.nextRooms;
   }
@@ -43,13 +43,13 @@ export class ScoutDaemon extends Daemon {
     }
 
     const options: AgentRequestOptions = {
-      priority: AGENT_PRIORITIES.scout
+      priority: AGENT_PRIORITIES.probe
     };
 
     const bodyParts = [MOVE, MOVE]
 
     const setup: AgentSetup = {
-      role: 'scout',
+      role: 'probe',
       bodyParts: bodyParts
     };
 
@@ -106,11 +106,11 @@ export class ScoutDaemon extends Daemon {
   }
 
   /**
-   * Update exploration for the current scout location
-   * @param scout 
+   * Update exploration for the current probe location
+   * @param probe 
    */
-  private lookRoom(scout: Agent) {
-    const roomName = scout.room.name;
+  private lookRoom(probe: Agent) {
+    const roomName = probe.room.name;
 
     const exploration = Exploration.exploration();
 
@@ -118,14 +118,14 @@ export class ScoutDaemon extends Daemon {
     const room = Game.rooms[roomName];
     if (room.controller && (room.controller.sign?.username != Settings.Username || room.controller.sign?.text == '[object Object]' || room.controller.sign?.text == 'undefined')) {
       // Need to update sign
-      scout.taskPipelineHandler.clear(); // Clean to force rebuild with sign
+      probe.taskPipelineHandler.clear(); // Clean to force rebuild with sign
     }
 
 
     // Add scout room if not exists or update his current room
     const isNewRoom = !exploration.hasRoom(roomName);
     if (isNewRoom || exploration.needUpdate(roomName)) {
-      exploration.analyseRoom(scout.room);
+      exploration.analyseRoom(probe.room);
     }
 
     if (isNewRoom) {

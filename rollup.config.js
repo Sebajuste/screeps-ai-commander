@@ -86,8 +86,5 @@ export default {
       "//\n" +
       "// Repository: \n" +
       "//\n"
-  }, {
-    file: pkg.module,
-    format: "es"
   }],
 };

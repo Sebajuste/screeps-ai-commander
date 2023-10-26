@@ -1,14 +1,13 @@
 import { Commander } from "Commander";
-import { ScoutDaemon } from "daemons";
+import { ProbeDaemon } from "daemons";
 import { GuardDaemon } from "daemons/expend/guard-daemon";
 import { Directive } from "directives/Directive";
 import { Hub } from "hub/Hub";
-import { log } from "utils/log";
 
-export class ScoutDirective extends Directive {
+export class ProbeDirective extends Directive {
 
   daemons: {
-    scout: ScoutDaemon
+    probe: ProbeDaemon
     guard: GuardDaemon
   };
 
@@ -19,7 +18,7 @@ export class ScoutDirective extends Directive {
   spawnDaemons(): void {
     if (this.room.name != 'sim') {
       // No multi room for Simulation
-      this.daemons.scout = new ScoutDaemon(this.hub, this);
+      this.daemons.probe = new ProbeDaemon(this.hub, this);
       this.daemons.guard = new GuardDaemon(this.hub, this);
     }
   }

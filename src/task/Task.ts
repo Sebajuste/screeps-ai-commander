@@ -8,7 +8,6 @@ import { printCreep } from "utils/creep-utils";
 import { log } from "utils/log";
 
 export type TaskTarget = { id?: Id<_HasId>, pos: RoomPosition };
-// export type TaskTarget = _HasId | _HasRoomPosition;
 
 export interface TaskOptions {
   targetRange: number;

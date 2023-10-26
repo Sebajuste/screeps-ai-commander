@@ -20,11 +20,11 @@ export class BuildDirective extends Directive {
   }
 
   init(): void {
-    // throw new Error("Method not implemented.");
+
   }
 
   run(): void {
-    // throw new Error("Method not implemented.");
+
   }
 
 }

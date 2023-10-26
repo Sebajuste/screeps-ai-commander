@@ -10,6 +10,12 @@ import { log } from "utils/log";
 
 export class Scheduler {
 
+  static Settings = {
+    areaPriotityOffset: 1,
+    directivePriotityOffset: 2,
+    daemonPriotityOffset: 3,
+  };
+
   hub: Hub;
   daemons: Daemon[];
   directives: Directive[];
@@ -109,21 +115,21 @@ export class Scheduler {
   }
 
   refresh() {
-    this.directives.forEach(directive => CPU.pushProcess(() => directive.refresh(), PROCESS_PRIORITY_HIGHT));
-    this.daemons.forEach(daemon => CPU.pushProcess(() => daemon.refresh(), PROCESS_PRIORITY_HIGHT + 1));
+    this.directives.forEach(directive => CPU.pushProcess(() => directive.refresh(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.directivePriotityOffset));
+    this.daemons.forEach(daemon => CPU.pushProcess(() => daemon.refresh(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.daemonPriotityOffset));
   }
 
   init() {
-    this.directives.forEach(directive => CPU.pushProcess(() => directive.init(), PROCESS_PRIORITY_HIGHT + 10));
+    this.directives.forEach(directive => CPU.pushProcess(() => directive.init(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.directivePriotityOffset + 10));
     this.daemons.forEach(daemon => CPU.pushProcess(() => {
       daemon.preInit();
       daemon.init();
-    }, PROCESS_PRIORITY_HIGHT + 11));
+    }, PROCESS_PRIORITY_HIGHT + Scheduler.Settings.daemonPriotityOffset + 10));
   }
 
   run() {
-    this.directives.forEach(directive => CPU.pushProcess(() => directive.run(), PROCESS_PRIORITY_HIGHT + 20));
-    this.daemons.forEach(daemon => CPU.pushProcess(() => daemon.run(), PROCESS_PRIORITY_HIGHT + 21));
+    this.directives.forEach(directive => CPU.pushProcess(() => directive.run(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.directivePriotityOffset + 20));
+    this.daemons.forEach(daemon => CPU.pushProcess(() => daemon.run(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.daemonPriotityOffset + 20));
   }
 
 }

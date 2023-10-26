@@ -9,7 +9,10 @@ export const Settings = {
   cpuBucketMin: 400,
 
   hubOutpostAmount: 2,
-  hubMaxSource: 5,
+  hubMaxSource: (rcl: number) => Math.max(2, rcl < 4 ? 5 : 4),
+
+
+  hubStorageMaxEnergy: 200000,
 
   Username: _.first(_.filter(_.values(Game.structures), (structure: any) => structure['owner'] != undefined) as any[]).owner.username
 

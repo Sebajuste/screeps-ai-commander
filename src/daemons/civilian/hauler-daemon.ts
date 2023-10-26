@@ -19,10 +19,10 @@ export class HaulerDaemon extends Daemon {
 
   initializer: Actor;
 
-  maxQuantity?: number;
+  maxQuantity: number;
   memory: HaulerStat;
 
-  constructor(hub: Hub, initializer: Actor, priority?: number, maxQuantity?: number) {
+  constructor(hub: Hub, initializer: Actor, priority?: number, maxQuantity: number = 1) {
     super(hub, initializer, 'hauler', priority);
     this.initializer = initializer;
     this.maxQuantity = maxQuantity;
@@ -45,9 +45,9 @@ export class HaulerDaemon extends Daemon {
     const haulerEta = this.memory.eta * this.memory.inputRate * 2;
     const carryPerAgent = countBodyPart(bodyParts, CARRY);
 
-    const haulerQuantity = MathRange(1, this.maxQuantity ?? 1, haulerEta / carryPerAgent);
+    // const haulerQuantity = MathRange(1, this.maxQuantity, haulerEta / carryPerAgent);
 
-    this.wishList(1, setup, options);
+    this.wishList(this.maxQuantity, setup, options);
 
   }
 
@@ -60,7 +60,10 @@ export class HaulerDaemon extends Daemon {
       log.warning(`${this.print} room not reachable`)
     }
 
-    this.spawnHandler();
+    if (this.maxQuantity > 0) {
+      this.spawnHandler();
+    }
+
   }
 
   run(): void {

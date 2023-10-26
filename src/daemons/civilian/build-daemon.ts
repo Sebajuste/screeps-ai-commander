@@ -93,7 +93,6 @@ export class BuildDaemon extends Daemon {
     }
 
     return _.chain(this.hub.constructionSites ?? [])//
-      // .filter(site => site.p < site.hitsMax)//
       .orderBy(site => siteScore(this.hub, site), ['desc'])//
       .first()//
       .value();

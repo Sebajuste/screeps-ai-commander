@@ -16,6 +16,8 @@ import { RoomPlanner } from "./room-planner/room-planner";
 import { BunkerRoomPlanner } from "./room-planner/bunker-room-planner";
 import { Coord } from "utils/coord";
 import { Visualizer } from "ui/visualizer";
+import { HubCenterArea } from "area/hub/hubcenter-area";
+import { LinkNetwork } from "logistics/link-network";
 
 
 interface HubMemory {
@@ -52,6 +54,7 @@ export class Hub {
 
   scheduler: Scheduler;
   logisticsNetwork: LogisticsNetwork;
+  linkNetwork: LinkNetwork;
 
   // Physical Hub structures and roomObjects
   controller: StructureController;					          // These are all duplicated from room properties
@@ -66,9 +69,11 @@ export class Hub {
   containers: StructureContainer[];
   containersByRooms: Dictionary<StructureContainer[]>;
 
+  extentions: StructureExtension[];
   links: StructureLink[];
-
+  labs: StructureLab[];
   towers: StructureTower[];
+  nuker?: StructureNuker;
 
   constructionSitesByRooms: Dictionary<ConstructionSite[]>;
   constructionSites: ConstructionSite[];
@@ -84,7 +89,8 @@ export class Hub {
 
   areas: {
     agentFactory?: AgentFactoryArea,
-    upgrade?: UpgradeArea
+    upgrade?: UpgradeArea,
+    hubCenter?: HubCenterArea
   };
 
   areaList: Area[];
@@ -102,12 +108,15 @@ export class Hub {
     this.ref = name;
     this.scheduler = new Scheduler(this);
     this.logisticsNetwork = new LogisticsNetwork(this);
+    this.linkNetwork = new LinkNetwork(this);
 
     this.structuresByRooms = {};
     this.structures = [];
 
     this.links = [];
+    this.extentions = [];
     this.towers = [];
+    this.labs = [];
 
     this.constructionSitesByRooms = {};
     this.constructionSites = [];
@@ -181,17 +190,20 @@ export class Hub {
     this.containers = _.filter(this.structures, structure => structure.structureType == STRUCTURE_CONTAINER) as StructureContainer[];
     this.containersByRooms = _.groupBy(this.containers, container => container.room.name);
 
+    this.extentions = _.filter(this.structuresByRooms[this.room.name] ?? [], structure => structure.structureType == STRUCTURE_EXTENSION) as StructureExtension[];
     this.links = _.filter(this.structuresByRooms[this.room.name] ?? [], structure => structure.structureType == STRUCTURE_LINK) as StructureLink[];
     this.towers = _.filter(this.structuresByRooms[this.room.name] ?? [], structure => structure.structureType == STRUCTURE_TOWER) as StructureTower[];
+
+    this.labs = _.filter(this.structuresByRooms[this.room.name] ?? [], structure => structure.structureType == STRUCTURE_LAB) as StructureLab[];
+    this.nuker = _.find(this.structuresByRooms[this.room.name] ?? [], structure => structure.structureType == STRUCTURE_NUKER) as StructureNuker | undefined;
 
     this.constructionSites = _.filter(Game.constructionSites, site => outputNames.includes(site.pos.roomName));
     this.constructionSitesByRooms = _.groupBy(this.constructionSites, site => site.pos.roomName);
 
-    this.sources = _.slice(_.orderBy(_.flatten(_.map(this.rooms, room => room.find(FIND_SOURCES))), source => getMultiRoomRange(source.pos, this.pos), ['asc']), 0, Settings.hubMaxSource);
+    this.sources = _.slice(_.orderBy(_.flatten(_.map(this.rooms, room => room.find(FIND_SOURCES))), source => getMultiRoomRange(source.pos, this.pos), ['asc']), 0, Settings.hubMaxSource(this.level));
 
     this.sources.forEach(source => setHarvestFlag(this, source));
 
-    //const commanderPosition = this.area.command_site?.pos;
     this.dropsByRooms = {};
     this.rooms.forEach(room => {
       this.dropsByRooms[room.name] = room.find(FIND_DROPPED_RESOURCES);
@@ -212,6 +224,10 @@ export class Hub {
 
     if (this.spawns[0]) {
       this.areas.agentFactory = new AgentFactoryArea(this, this.spawns[0]);
+    }
+
+    if (this.storage && this.spawns[0]) {
+      this.areas.hubCenter = new HubCenterArea(this, this.storage);
     }
 
     this.areas.upgrade = new UpgradeArea(this);
@@ -251,8 +267,9 @@ export class Hub {
 
     this.registerRoomObject();
     this.logisticsNetwork.refresh();
+    this.linkNetwork.refresh();
 
-    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.refresh(), PROCESS_PRIORITY_HIGHT));
+    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.refresh(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.areaPriotityOffset));
     this.scheduler.refresh();
 
     this.roomPlanner.refresh();
@@ -260,7 +277,7 @@ export class Hub {
 
   init() {
 
-    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.init(), PROCESS_PRIORITY_HIGHT + 10));
+    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.init(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.areaPriotityOffset + 10));
     this.scheduler.init();
 
     CPU.cpu().pushProcess(() => this.roomPlanner.init());
@@ -271,8 +288,11 @@ export class Hub {
 
     const start = Game.cpu.getUsed();
 
-    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.run(), PROCESS_PRIORITY_HIGHT + 20));
+    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.run(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.areaPriotityOffset + 20));
     this.scheduler.run();
+
+    CPU.cpu().pushProcess(() => this.linkNetwork.run(), PROCESS_PRIORITY_HIGHT + 30);
+
 
     _.orderBy(this.agents, agent => agent.lastRunTick, ['asc']).forEach(agent => CPU.cpu().pushProcess(() => agent.run(), PROCESS_PRIORITY_NORMAL));
 

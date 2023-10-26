@@ -3,8 +3,9 @@ import { UpgradeDaemon } from "daemons";
 import { TowerDaemon } from "daemons/military/tower-daemon";
 import { Hub } from "hub/Hub";
 import _ from "lodash";
-import { Mem } from "memory/Memory";
+import { Mem, MemCacheObject } from "memory/Memory";
 import { deserializePos, serializePos, serializeTasks } from "task/task-initializer";
+import { log } from "utils/log";
 import { findClosestByLimitedRange } from "utils/util-pos";
 
 interface UpgradeAreaMemory {
@@ -22,14 +23,20 @@ export class UpgradeArea extends Area {
   }
 
   dropPos: RoomPosition;
-  container?: StructureContainer | null;
-  link?: StructureLink | null;
-  constructionSite?: ConstructionSite | null;
+  linkPos: RoomPosition;
+
+  private _containerCache: MemCacheObject<StructureContainer>;
+  private _linkCache: MemCacheObject<StructureLink>;
+  private _constructionSiteCache: MemCacheObject<ConstructionSite>;
 
   constructor(hub: Hub) {
     super(hub, hub.controller, 'upgradeArea');
 
     this.memory = Mem.wrap(this.hub.memory, 'upgradeArea');
+
+    this._containerCache = new MemCacheObject<StructureContainer>(this.memory, 'container');
+    this._linkCache = new MemCacheObject<StructureLink>(this.memory, 'link');
+    this._constructionSiteCache = new MemCacheObject<ConstructionSite>(this.memory, 'constructionSite');
 
     let steps = null;
 
@@ -50,7 +57,21 @@ export class UpgradeArea extends Area {
     }
 
     this.dropPos = deserializePos(this.memory.containerPos!);
+    this.linkPos = deserializePos(this.memory.linkPos!);
   }
+
+  get container(): StructureContainer | null {
+    return this._containerCache.value;
+  }
+
+  get link(): StructureLink | null {
+    return this._linkCache.value;
+  }
+
+  get constructionSite(): ConstructionSite | null {
+    return this._constructionSiteCache.value;
+  }
+
 
   spawnDaemons(): void {
 
@@ -65,12 +86,20 @@ export class UpgradeArea extends Area {
   refresh() {
     super.refresh();
 
-    const containers = _.filter(this.hub.structuresByRooms[this.room.name], structure => structure.structureType == STRUCTURE_CONTAINER) as StructureContainer[];
-    this.container = findClosestByLimitedRange(this.pos, containers, 5);
+    this._containerCache.refresh(this.memory);
+    if (!this._containerCache.isValid()) {
+      this._containerCache.value = findClosestByLimitedRange(this.pos, this.hub.containersByRooms[this.room.name] ?? [], 5);
+    }
 
-    this.link = findClosestByLimitedRange(this.pos, this.hub.links, 5);
+    this._linkCache.refresh(this.memory);
+    if (!this._linkCache.isValid()) {
+      this._linkCache.value = findClosestByLimitedRange(this.pos, this.hub.links, 5);
+    }
 
-    this.constructionSite = findClosestByLimitedRange(this.pos, this.hub.constructionSitesByRooms[this.room.name], 5);
+    this._constructionSiteCache.refresh(this.memory);
+    if (!this._constructionSiteCache.isValid()) {
+      this._constructionSiteCache.value = findClosestByLimitedRange(this.pos, this.hub.constructionSitesByRooms[this.room.name] ?? [], 5);
+    }
 
   }
 
@@ -82,7 +111,8 @@ export class UpgradeArea extends Area {
     }
 
     if (!this.link && !this.constructionSite && this.hub.level >= 5) {
-      this.dropPos.createConstructionSite(STRUCTURE_LINK);
+      // Require link
+      this.linkPos.createConstructionSite(STRUCTURE_LINK);
     }
 
   }

@@ -51,7 +51,7 @@ export function getSignFromRoom(hub: Hub, room: Room): string | undefined {
   if (controller && (controller.sign?.username != Settings.Username || controller.sign?.text == '[object Object]' || controller.sign?.text == 'undefined')) {
     const isHub = room.name == hub.name;
     const isOutpost = _.find(hub.outposts, outpost => outpost.name == room.name) != undefined;
-    const isEnnemy = !controller.my && controller.owner?.username !== Settings.Username;
+    const isEnnemy = !controller.my && controller.owner?.username && controller.owner?.username !== Settings.Username;
 
     if (isHub) {
       return selectSignText('hub')

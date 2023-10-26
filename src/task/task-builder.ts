@@ -1,4 +1,5 @@
 import { Task } from "./Task";
+import { AttackTask } from "./tasks/AttackTask";
 import { BuildTask } from "./tasks/BuildTask";
 import { DropTask } from "./tasks/DropTask";
 import { HarvestTask } from "./tasks/HarvestTask";
@@ -46,6 +47,10 @@ export function isRoomPosition(obj: any): obj is RoomPosition {
 
 
 export class Tasks {
+
+  static attack(target: AnyCreep | Structure<StructureConstant>) {
+    return new AttackTask(target);
+  }
 
   static build(target: ConstructionSite) {
     return new BuildTask(target);

@@ -10,7 +10,7 @@ export const AGENT_PRIORITIES = {
     supplier: 15,
     guard: 20,
     upgrader_earlier: 25,
-    scout: 35,
+    probe: 35,
     builder: 45,
     commando: 47,
     miner: 50,
@@ -69,7 +69,7 @@ export const HARVEST_BASIC_STRUCTURE_TEMPLATE: BodyTemplate = {
         [WORK, WORK, MOVE],
         [WORK, WORK, WORK, MOVE],
         [WORK, WORK, WORK, WORK, MOVE],
-        [WORK, WORK, WORK, WORK, WORK, MOVE],
+        [WORK, WORK, WORK, WORK, WORK, MOVE], // 5-WORK 1-MOVE
     ]
 };
 
@@ -78,19 +78,10 @@ export const HARVEST_STRUCTURE_TEMPLATE: BodyTemplate = {
         [WORK, WORK, MOVE],
         [WORK, WORK, CARRY, MOVE],
         [WORK, WORK, WORK, CARRY, MOVE],
-        [WORK, WORK, WORK, WORK, CARRY, MOVE],
-        [WORK, WORK, WORK, WORK, WORK, CARRY, MOVE],
-        [WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, MOVE],
-        [WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE] // 8-WORK 4-CARRY 3-MOVE
-    ]
-};
-
-export const HARVEST_TEMPLATE: BodyTemplate = {
-    bodyParts: [
-        [WORK, WORK, MOVE],
-        [WORK, WORK, WORK, MOVE],
-        [WORK, WORK, WORK, WORK, MOVE],
-        [WORK, WORK, WORK, WORK, WORK, MOVE] // 5-WORK 1-MOVE
+        [WORK, WORK, WORK, WORK, CARRY, MOVE], // 5-WORK 1-CARRY 1-MOVE
+        // [WORK, WORK, WORK, WORK, WORK, CARRY, MOVE],
+        // [WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, MOVE],
+        // [WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE] // 8-WORK 4-CARRY 3-MOVE
     ]
 };
 
@@ -126,6 +117,8 @@ export const UPGRADER_BATTERY_TEMPLATE: BodyTemplate = {
     bodyParts: [
         [WORK, WORK, CARRY, MOVE],  // 2-WORK 1-CARRY 1-MOVE
         [WORK, WORK, WORK, WORK, WORK, CARRY, MOVE, MOVE, MOVE], // 5-WORK 1-CARRY 3-MOVE
+        [WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, MOVE, MOVE, MOVE], // 7-WORK 1-CARRY 3-MOVE
+        [WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, MOVE, MOVE, MOVE, MOVE], // 8-WORK 1-CARRY 4-MOVE
         [WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE], // 10-WORK 2-CARRY 6-MOVE
     ]
 };

@@ -13,6 +13,7 @@ import { BuildTask, TASK_BUILD_NAME } from "./tasks/BuildTask";
 import { TASK_WAIT_NAME, WaitTask } from "./tasks/WaitTask";
 import { RepairTask, TASK_NAME_REPAIR } from "./tasks/RepairTask";
 import { SignTask, TASK_SIGN_NAME } from "./tasks/SignTask";
+import { AttackTask, TASK_ATTACK_NAME } from "./tasks/AttackTask";
 
 export function serializePos(pos: RoomPosition): string {
   return `${pos.x};${pos.y};${pos.roomName}`;
@@ -28,6 +29,7 @@ type SerializedTaskTarget = _HasId | { pos: string };
 type TaskFactory = (target: TaskTarget, options: TaskOptions) => Task;
 
 export const TASK_BUILDER: Dictionary<TaskFactory> = {
+  [TASK_ATTACK_NAME]: (target: any, options: TaskOptions) => new AttackTask(target),
   [TASK_BUILD_NAME]: (target: any, options: TaskOptions) => new BuildTask(target),
   [DROP_TASK_NAME]: (target: TaskTarget, options: TaskOptions) => new DropTask(target.pos, options.resourceType, options.amount),
   [HARVEST_TASK_NAME]: (target: any, options: TaskOptions) => new HarvestTask(target),

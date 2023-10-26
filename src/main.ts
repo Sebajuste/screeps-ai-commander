@@ -1,6 +1,5 @@
 import { Commander } from "./Commander";
 import { CPU } from "cpu/CPU";
-import { PROCESS_PRIORITY_HIGHT, Process } from "cpu/process";
 import { Mem } from "memory/Memory";
 import { Settings } from "settings";
 import { log } from "utils/log";
@@ -14,7 +13,7 @@ import { GaleShapley } from "utils/gale-shapley";
 import { TaskPipelineHandler } from "task/task-pipeline";
 import { LogisticsNetwork } from "logistics/logistics-network";
 import { Exploration } from "Exploration";
-import { ScoutDirective } from "directives/expend/scout-directive";
+import { ProbeDirective } from "directives/expend/probe-directive";
 import { BuildDirective } from "directives/hub/build-directive";
 import { OutpostDirective } from "directives/hub/outpost-directive";
 import { EnergySourceDirective } from "directives/resources/energy-source-directive";
@@ -31,8 +30,7 @@ import { WaitTask } from "task/tasks/WaitTask";
 import { WithdrawTask } from "task/tasks/WithdrawTask";
 import { Agent } from "agent/Agent";
 import { deserializeTasks, serializeTasks } from "task/task-initializer";
-import { BuildDaemon, Daemon, HarvestDaemon, HaulerDaemon, ScoutDaemon, UpgradeDaemon } from "daemons";
-import { selectSignText } from "utils/sign-text";
+import { BuildDaemon, Daemon, HarvestDaemon, HaulerDaemon, ProbeDaemon, UpgradeDaemon } from "daemons";
 
 
 let commander: any = null;
@@ -67,7 +65,7 @@ function registerProfiler() {
   profiler.registerClass(CPU, 'CPU');
   profiler.registerClass(Traveler, 'Traveler');
 
-  profiler.registerClass(ScoutDirective, 'ScoutDirective');
+  profiler.registerClass(ProbeDirective, 'ScoutDirective');
   profiler.registerClass(BuildDirective, 'BuildDirective');
   profiler.registerClass(OutpostDirective, 'OutpostDirective');
   profiler.registerClass(EnergySourceDirective, 'EnergySourceDirective');
@@ -76,7 +74,7 @@ function registerProfiler() {
   profiler.registerClass(HarvestDaemon, 'HarvestDaemon');
   profiler.registerClass(HaulerDaemon, 'HaulerDaemon');
   profiler.registerClass(UpgradeDaemon, 'UpgradeDaemon');
-  profiler.registerClass(ScoutDaemon, 'ScoutDaemon');
+  profiler.registerClass(ProbeDaemon, 'ScoutDaemon');
 
   profiler.registerClass(BuilderRole, 'BuilderRole');
   profiler.registerClass(HarvestRole, 'HarvestRole');
@@ -109,16 +107,12 @@ function main() {
     log.info('REBUILD');
     commander = new Commander();
     commander.build();
-    // CPU.cpu().pushProcess(() => commander.build(), PROCESS_PRIORITY_HIGHT);
   } else {
     commander.refresh();
-    // CPU.cpu().pushProcess(() => commander.refresh(), PROCESS_PRIORITY_HIGHT);
   }
 
   commander.init();
   commander.run();
-  //CPU.cpu().pushProcess(() => commander.init(), PROCESS_PRIORITY_HIGHT);
-  //CPU.cpu().pushProcess(() => commander.run(), PROCESS_PRIORITY_HIGHT);
   commander.visuals();
 
   CPU.cpu().run();

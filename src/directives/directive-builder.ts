@@ -5,7 +5,7 @@ import { OutpostDirective } from "./hub/outpost-directive";
 import { log } from "utils/log";
 import { EnergySourceDirective } from "./resources/energy-source-directive";
 import { BuildDirective } from "./hub/build-directive";
-import { ScoutDirective } from "./expend/scout-directive";
+import { ProbeDirective } from "./expend/probe-directive";
 
 
 export const FLAG_NAME_REGEX = /([\w]*)(@([\w]*))?\/([\w]*)/
@@ -16,8 +16,9 @@ const CONFIG: { [name: string]: (commander: Commander, flag: Flag, hub: Hub) => 
     "harvest": (commander: Commander, flag: Flag, hub: Hub) => new EnergySourceDirective(commander, flag, hub),
     // "bootstrap": (commander: Commander, flag: Flag, hub: Hub) => new BootstrapDirective(commander, flag, hub),
     "build": (commander: Commander, flag: Flag, hub: Hub) => new BuildDirective(commander, flag, hub),
-    "scout": (commander: Commander, flag: Flag, hub: Hub) => new ScoutDirective(commander, flag, hub),
+    "scout": (commander: Commander, flag: Flag, hub: Hub) => new ProbeDirective(commander, flag, hub),
     "outpost": (commander: Commander, flag: Flag, hub: Hub) => new OutpostDirective(commander, flag, hub),
+    "probe": (commander: Commander, flag: Flag, hub: Hub) => new ProbeDirective(commander, flag, hub),
     // "claim": (commander: Commander, flag: Flag, hub: Hub) => new ClaimDirective(commander, flag, hub),
     // "standBy": (commander: Commander, flag: Flag, hub: Hub) => new StandByDirective(commander, flag, hub),
 }

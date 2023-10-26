@@ -1,14 +1,14 @@
 import _ from "lodash";
 
 interface MemCacheMemory<T> {
-  cache?: T;
+  data?: T;
 }
 
 export class MemCache<T, S = T> {
 
   protected memory: MemCacheMemory<S>;
 
-  protected _value?: T;
+  protected _cache?: T;
 
   protected name: string;
 
@@ -18,34 +18,43 @@ export class MemCache<T, S = T> {
   }
 
   protected deserialize(): T | null {
-    return this.memory.cache as any;
+    return this.memory.data as any;
   }
 
   protected serialize(value: T): S {
     return value as any;
   }
 
+  isValid(): boolean {
+    return this._cache != null && this.value != undefined;
+  }
+
   clear() {
-    this._value = undefined
-    delete this.memory['cache'];
+    this._cache = undefined
+    delete this.memory['data'];
   }
 
   get value(): T | null {
-    if (!this._value && this.memory.cache) {
+    if (!this._cache && this.memory.data) {
+      // Update cache from memory
       const obj = this.deserialize();
       if (obj) {
-        this._value = obj as T;
+        this._cache = obj as T;
       } else {
         this.clear();
       }
     }
-    return this._value ?? null;
+    if (this._cache && !this.memory.data) {
+      // Save cache into memory
+      this.memory.data = this.serialize(this._cache);
+    }
+    return this._cache ?? null;
   }
 
   set value(v: T | null) {
     if (v) {
-      this._value = v;
-      this.memory.cache = this.serialize(v);
+      this._cache = v;
+      this.memory.data = this.serialize(v);
     } else {
       this.clear();
     }
@@ -62,7 +71,11 @@ export class MemCacheObject<T extends _HasId> extends MemCache<T, Id<_HasId>> {
   }
 
   protected deserialize(): T | null {
-    return this.memory.cache ? Game.getObjectById(this.memory.cache) as T : null;
+    const value = this.memory.data ? Game.getObjectById(this.memory.data) as T : null;
+    if (!value) {
+      this.clear();
+    }
+    return value;
   }
 
   protected serialize(value: T): Id<_HasId> {
@@ -71,7 +84,7 @@ export class MemCacheObject<T extends _HasId> extends MemCache<T, Id<_HasId>> {
 
   refresh(memory: any) {
     this.memory = Mem.wrap(memory, this.name, {});
-    this._value = undefined;
+    this._cache = undefined;
   }
 
 }

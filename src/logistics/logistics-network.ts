@@ -318,7 +318,8 @@ export class LogisticsNetwork {
 
   requestInput(target: LogisticsTarget, resourceType: ResourceConstant = RESOURCE_ENERGY, amount?: number) {
 
-    if (this.requests.find(req => req.target.id == target.id && req.resourceType == resourceType)) {
+    // if (this.requests.find(req => req.target.id == target.id && req.resourceType == resourceType)) {
+    if (this.haveRequest(target, resourceType)) {
       log.warning(`${this.hub.print} Input logistic already registered with resource ${resourceType} for target ${target} at ${target.pos}`);
       return;
     }
@@ -338,7 +339,7 @@ export class LogisticsNetwork {
 
   requestOutput(target: LogisticsTarget, resourceType: ResourceConstant = RESOURCE_ENERGY, amount?: number) {
 
-    if (this.requests.find(req => req.target.id == target.id && req.resourceType == resourceType)) {
+    if (this.haveRequest(target, resourceType)) {
       log.warning(`${this.hub.print} Output logistic already registered with resource ${resourceType} for target ${target} at ${target.pos}`);
       return;
     }
@@ -353,6 +354,20 @@ export class LogisticsNetwork {
     if (req.amount != 0) {
       this.requests.push(req);
       // log.debug(`${this.hub.print} logistic request output ${resourceType} for target ${target} at ${target.pos}`);
+    }
+  }
+
+  removeRequest(target: LogisticsTarget, resourceType: ResourceConstant = RESOURCE_ENERGY) {
+
+    const req = _.find(this.requests, req => (req.target.id == target.id || req.target.pos.isEqualTo(target.pos)) && req.resourceType == resourceType);
+
+    log.debug(`LogisticNetwork removeRequest req: `, req);
+
+    const startCount = this.requests.length;
+
+    if (req) {
+      _.remove(this.requests, it => it == req);
+      log.debug('> deleted : ', startCount - this.requests.length);
     }
   }
 

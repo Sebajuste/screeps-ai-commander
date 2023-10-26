@@ -38,7 +38,7 @@ export class HarvestDaemon extends Daemon {
       priority: AGENT_PRIORITIES.harvester
     };
 
-    const bodyParts = selectBodyParts(HARVEST_BASIC_STRUCTURE_TEMPLATE, this.hub.room.energyAvailable);
+    const bodyParts = selectBodyParts(this.initializer.link ? HARVEST_STRUCTURE_TEMPLATE : HARVEST_BASIC_STRUCTURE_TEMPLATE, this.hub.room.energyAvailable);
 
     const workPerHarvester = countBodyPart(bodyParts, WORK);
     this.memory.inputRate = workPerHarvester * 2;
@@ -72,11 +72,18 @@ export class HarvestDaemon extends Daemon {
 
     const drop = findClosestByLimitedRange(this.pos, this.hub.dropsByRooms[this.room.name], 1);
     if (drop) {
+      // Output the energy droped
       this.hub.logisticsNetwork.requestOutput(drop, drop.resourceType);
     }
 
-    if (this.initializer.container && this.initializer.container.store.getUsedCapacity(RESOURCE_ENERGY)) {
+    if (this.initializer.container && this.initializer.container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+      // Output the energy into container
       this.hub.logisticsNetwork.requestOutput(this.initializer.container, RESOURCE_ENERGY);
+    }
+
+    if (this.initializer.link && this.initializer.link.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+      // Output the energy into Link
+      this.hub.linkNetwork.requestOutput(this.initializer.link);
     }
 
   }
@@ -89,7 +96,7 @@ export class HarvestDaemon extends Daemon {
       _.filter(this.agents, agent => !agent.pos.isEqualTo(container.pos)).forEach(agent => agent.taskPipelineHandler.clear());
     }
 
-    this.autoRun(this.agents, agent => HarvestRole.pipeline(this.hub, agent, this.source, container));
+    this.autoRun(this.agents, agent => HarvestRole.pipeline(this.hub, agent, this.source, container, this.initializer.link));
 
   }
 

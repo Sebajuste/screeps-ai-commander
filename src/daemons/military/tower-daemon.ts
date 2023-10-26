@@ -16,6 +16,15 @@ export class TowerDaemon extends Daemon {
     super(hub, initializer, 'tower')
   }
 
+  private handleEnergyRequests() {
+    for (const tower of this.hub.towers) {
+      if (tower.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+        // Not enought energy
+        this.hub.logisticsNetwork.requestInput(tower, RESOURCE_ENERGY);
+      }
+    }
+  }
+
   private towerHandler(tower: StructureTower) {
 
     // Defense
@@ -66,11 +75,9 @@ export class TowerDaemon extends Daemon {
 
   init(): void {
 
-    for (const tower of this.hub.towers) {
-      if (tower.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-        // Not enought energy
-        this.hub.logisticsNetwork.requestInput(tower, RESOURCE_ENERGY);
-      }
+    if (!this.hub.storage) {
+      // Request energy if no supplier are present/planned
+      this.handleEnergyRequests();
     }
 
   }

@@ -197,10 +197,8 @@ export class AgentFactoryArea extends Area {
 
     refillSpawns.forEach(spawn => this.hub.logisticsNetwork.requestInput(spawn, RESOURCE_ENERGY));
 
-    if (!this.hub.storage) {
-      const refillExtensions = _.filter(this.extensions, extension => extension.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
-      refillExtensions.forEach(extension => this.hub.logisticsNetwork.requestInput(extension, RESOURCE_ENERGY));
-    }
+    const refillExtensions = _.filter(this.extensions, extension => extension.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
+    refillExtensions.forEach(extension => this.hub.logisticsNetwork.requestInput(extension, RESOURCE_ENERGY));
 
   }
 
@@ -291,7 +289,10 @@ export class AgentFactoryArea extends Area {
   }
 
   init(): void {
-    this.handleEnergyRequests();
+    if (!this.hub.storage || (this.hub.areas.hubCenter?.daemons.supply.agents.length ?? 0) == 0) {
+      // Direct request only if no storage or supplyer are available. Otherwise supply is in charge on it
+      this.handleEnergyRequests();
+    }
   }
 
   run(): void {

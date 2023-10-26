@@ -13,6 +13,8 @@ import { TaskPipeline } from "task/task-pipeline";
 import { LogisticsRequest } from "logistics/logistics-network";
 import { Settings } from "settings";
 import { getSignFromRoom, selectSignText } from "utils/sign-text";
+import { destinationScore, dropScore, hostileScore, scoutScore, sourceScore } from "./roles-utils";
+import { haveBodyPart } from "agent/agent-builder";
 
 export class BuilderRole {
 
@@ -28,8 +30,19 @@ export class BuilderRole {
     const energyDrops = _.filter(hub.dropsByRooms[constructionSite.pos.roomName] ?? [], drop => drop.resourceType == RESOURCE_ENERGY);
     const nearestDrop = constructionSite.pos.findClosestByRange(energyDrops);
 
-    const containers = _.filter(hub.containersByRooms[constructionSite.pos.roomName] ?? [], container => container.store.getUsedCapacity(RESOURCE_ENERGY) > 0);
-    const nearestContainer = constructionSite.pos.findClosestByRange(containers);
+
+    const storeStructures = _.chain(hub.containersByRooms[constructionSite.pos.roomName] as StoreStructure[] ?? [])//
+      .concat([hub.storage as any | undefined])//
+      .compact()//
+      .filter(storeStructure => storeStructure.store.getUsedCapacity(RESOURCE_ENERGY) > 0)//
+      .value();
+
+
+
+    // const containers = hub.containersByRooms[constructionSite.pos.roomName] ?? [];
+    // const stores = _.concat(containers, [hub.storage as any]) as StoreStructure[];
+    // const containers = _.filter(hub.containersByRooms[constructionSite.pos.roomName] ?? [], container => container.store.getUsedCapacity(RESOURCE_ENERGY) > 0);
+    const nearestContainer = constructionSite.pos.findClosestByRange(storeStructures);
 
     if (nearestDrop && nearestContainer) {
 
@@ -62,6 +75,57 @@ export class BuilderRole {
 
 }
 
+export class CommandoRole {
+
+  static pipeline(soldier: Agent, roomName: string, hostiles: Creep[], hostileStructures: Structure[]): TaskPipeline {
+
+    const hostileCreepTarget = _.first(_.orderBy(hostiles, hostile => hostileScore(soldier, hostile), ['desc']));
+
+    const pipeline: TaskPipeline = [];
+
+    if (!haveBodyPart(soldier.creep, ATTACK) && hostileCreepTarget && hostileCreepTarget.pos.getRangeTo(soldier.pos) < 5) {
+      // TODO : flee
+
+    }
+
+    const structureTarget = _.last(_.sortBy(hostileStructures, 'hits'));
+
+    if (hostileCreepTarget) {
+      // Attack Creep
+      if (haveBodyPart(soldier.creep, RANGED_ATTACK)) {
+        // return Tasks.attackRanged(hostileCreepTarget);
+
+        if (haveBodyPart(soldier.creep, HEAL)) {
+          // Heal range
+        }
+
+      } else {
+        pipeline.push(Tasks.attack(hostileCreepTarget));
+
+        if (haveBodyPart(soldier.creep, HEAL)) {
+          // Heal range
+
+          // Heal
+        }
+
+      }
+    } else if (structureTarget) {
+      // Attack Structure
+      pipeline.push(Tasks.attack(structureTarget));
+    } else {
+      // Go to the battlefield
+      pipeline.push(Tasks.wait(new RoomPosition(25, 25, roomName), 20))
+    }
+
+    // return Tasks.wait({ id: undefined, pos: new RoomPosition(25, 25, roomName) }, () => (true));
+    // return Tasks.moveTo({ pos: new RoomPosition(25, 25, roomName) });
+
+    return pipeline;
+
+  }
+
+}
+
 export class GuardRole {
 
   static pipeline(agent: Agent, targetRoom?: string) {
@@ -78,11 +142,14 @@ export class GuardRole {
 
 export class HarvestRole {
 
-  static pipeline(hub: Hub, agent: Agent, source: Source, container?: StructureContainer | null): Task[] {
+  static pipeline(hub: Hub, agent: Agent, source: Source, container?: StructureContainer | null, link?: StructureLink | null): Task[] {
 
     if (container && container.store.getFreeCapacity(RESOURCE_ENERGY) == 0) {
       // Container full
-      return [];
+      if (!link || link.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+        // No link, or link is full
+        return [];
+      }
     }
 
     const pipeline: TaskPipeline = [];
@@ -90,6 +157,101 @@ export class HarvestRole {
     if (container && (agent.pos.roomName != container.pos.roomName || agent.pos.x == container.pos.x || agent.pos.y == container.pos.y)) {
       // Agent must go on the container
       pipeline.push(Tasks.wait(container.pos, 0));
+    }
+
+
+    //
+    //
+    //
+    if (link && agent.haveBodyPart(CARRY) && link.hits < link.hitsMax) {
+      // Need to repair Link
+
+      pipeline.push(Tasks.repair(link));
+
+      if (agent.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+        // Take Energy to repair
+
+        if (container && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+          pipeline.push(Tasks.withdraw(container, RESOURCE_ENERGY));
+        } else {
+          pipeline.push(Tasks.harvest(source));
+        }
+
+      }
+      return pipeline;
+    }
+
+    //
+    //
+    //
+    if (container && agent.haveBodyPart(CARRY) && container.hits < container.hitsMax) {
+      // Need to repair container
+
+      pipeline.push(Tasks.repair(container));
+
+      if (agent.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+        // Take Energy to repair
+
+        if (container && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+          pipeline.push(Tasks.withdraw(container, RESOURCE_ENERGY));
+        } else {
+          pipeline.push(Tasks.harvest(source));
+        }
+
+      }
+      return pipeline;
+    }
+
+    //
+    //
+    //
+    if (link && link.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+      // Harvest to Link
+
+      if (agent.store.getUsedCapacity(RESOURCE_ENERGY) == 0) {
+        // Need to take Energy
+
+        if (container && container.store.getUsedCapacity(RESOURCE_ENERGY) > 300) {
+          // From Container
+          pipeline.push(Tasks.withdraw(container, RESOURCE_ENERGY));
+        } else {
+          // From Harvest
+          pipeline.push(Tasks.harvest(source));
+        }
+      }
+
+      pipeline.push(Tasks.transfer(link, RESOURCE_ENERGY));
+
+      return pipeline;
+    }
+
+    //
+    //
+    //
+    if (container && agent.store.getFreeCapacity(RESOURCE_ENERGY) == 0 && (container.store.getFreeCapacity(RESOURCE_ENERGY) ?? 0) > 0) {
+      // Transfer to energy
+      pipeline.push(Tasks.transfer(container, RESOURCE_ENERGY));
+    }
+
+    if (container && container.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+
+      pipeline.push(Tasks.harvest(source));
+
+      if (agent.haveBodyPart(CARRY)) {
+        pipeline.push(Tasks.drop(agent.pos, RESOURCE_ENERGY));
+      }
+
+      return pipeline;
+
+      /*
+      if (!container) {
+        pipeline.push(Tasks.harvest(source));
+        // return Tasks.harvestDrop(source, undefined, { one_shoot: true, target_range: 1 } as TaskOptions);
+        return pipeline;
+      }
+
+      return pipeline;
+      */
     }
 
     pipeline.push(Tasks.harvest(source, container));
@@ -102,8 +264,6 @@ export class HarvestRole {
 export class HaulerRole {
 
   static newTasks(hub: Hub, agent: Agent, request?: LogisticsRequest): Task[] {
-
-    // const request = hub.logisticsNetwork.getLogisticsRequest(agent);
 
     if (request) {
 
@@ -140,12 +300,14 @@ export class HaulerRole {
       log.debug(`${agent.print} Cannot found logistic request`);
     }
 
+    /*
     if (hub.storage && agent.store.getUsedCapacity() > 0) {
       const resource = _.first(Object.keys(agent.store) as ResourceConstant[]);
       if (resource) {
         return [Tasks.transfer(hub.storage, resource)];
       }
     }
+    */
 
     return [];
   }
@@ -226,7 +388,7 @@ export class ScoutRole {
     const pipeline: TaskPipeline = [];
 
     if (nextRooms.length == 0) {
-      // No next room to scout
+      // No next room to explore
 
       const text = getSignFromRoom(hub, agent.creep.room);
       if (text) {
@@ -250,7 +412,7 @@ export class ScoutRole {
 
       log.debug(`ScoutRole for ${agent.print}. Destination room reached`);
 
-      const nextRoom = _.first(_.orderBy(nextRooms, room => getRoomRange(agent.pos.roomName, room), ['asc']));
+      const nextRoom = _.first(_.orderBy(nextRooms, room => scoutScore(agent, room), ['desc']));
 
       _.remove(nextRooms, it => it == nextRoom);
 
@@ -280,6 +442,44 @@ export class ScoutRole {
 
     pipeline.push(Tasks.wait(new RoomPosition(25, 25, roomName), 20));
     return pipeline;
+  }
+
+}
+
+export class SupplierRole {
+
+  static pipeline(hub: Hub, agent: Agent, sources: StoreStructure[], destinations: StoreStructure[]): TaskPipeline {
+    if (agent.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+      // Supply Energy
+      const sorted_destinations = _.orderBy(destinations, desination => destinationScore(agent, desination), ['desc']);
+      const destination: any | undefined = _.first(sorted_destinations);
+      if (destination) {
+        _.remove(destinations, it => it == destination);
+        return [Tasks.transfer(destination, RESOURCE_ENERGY)];
+      }
+    }
+
+    if (agent.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+      // Take Energy
+
+      // From Source
+      const source: any = _.last(_.sortBy(sources, source => sourceScore(agent, source)));
+      if (source) {
+        return [Tasks.withdraw(source, RESOURCE_ENERGY)];
+      }
+
+      // From drops
+      const drops = agent.pos.findInRange(hub.dropsByRooms[agent.room.name], 5, { filter: (drop: Resource) => drop.resourceType == RESOURCE_ENERGY });
+      const drop = _.first(_.orderBy(drops, d => dropScore(agent, d), ['desc']));
+
+      if (drop) {
+        _.remove(hub.dropsByRooms[agent.room.name], it => it == drop);
+        return [Tasks.pickup(drop)];
+      }
+
+    }
+
+    return [];
   }
 
 }

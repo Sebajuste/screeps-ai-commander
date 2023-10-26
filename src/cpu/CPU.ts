@@ -10,9 +10,12 @@ export class CPU {
   private _nextPid: number;
   private processQueue: Process[];
 
+  private limitMode: boolean;
+
   private constructor() {
     this._nextPid = 0;
     this.processQueue = [];
+    this.limitMode = false;
   }
 
   private get nextPid() {
@@ -50,6 +53,12 @@ export class CPU {
   }
 
   public run() {
+
+    if (Game.cpu.bucket < 9000) {
+      this.limitMode = true;
+    } else if (Game.cpu.bucket >= 10000) {
+      this.limitMode = false;
+    }
 
     let taskCount = 0;
 
@@ -90,7 +99,7 @@ export class CPU {
 
       statistics.count++;
 
-      if (Game.cpu.bucket < 10000 && currentCpu > Settings.cpuMax) {
+      if (this.limitMode && currentCpu > Settings.cpuMax) {
         break;
       }
 
