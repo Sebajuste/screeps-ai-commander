@@ -5,6 +5,7 @@ import { DropTask } from "./tasks/DropTask";
 import { HarvestTask } from "./tasks/HarvestTask";
 import { PickupTask } from "./tasks/PickupTask";
 import { RepairTask } from "./tasks/RepairTask";
+import { ReserveTask } from "./tasks/ReserveTask";
 import { SignTask } from "./tasks/SignTask";
 import { TransferTask } from "./tasks/TransferTask";
 import { UpgradeTask } from "./tasks/UpgradeTask";
@@ -70,6 +71,10 @@ export class Tasks {
 
   static repair(target: Structure) {
     return new RepairTask(target);
+  }
+
+  static reserve(target: StructureController) {
+    return new ReserveTask(target);
   }
 
   static sign(controller: StructureController, text: string) {

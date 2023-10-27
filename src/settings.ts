@@ -4,7 +4,7 @@ export const Settings = {
 
   profilerEnable: true,
   rebuildTick: 500,
-  cpuMax: Game.cpu.limit * 0.85, // 17
+  cpuMax: 17, // Game.cpu.limit * 0.85, // 17 per hub
 
   cpuBucketMin: 400,
 

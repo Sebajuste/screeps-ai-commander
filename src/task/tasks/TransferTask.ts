@@ -11,7 +11,12 @@ export class TransferTask extends Task {
 
   isFinished(creep: Creep): boolean {
 
-    return creep.store.getUsedCapacity(this.options.resourceType) == 0 || (this.target as StoreStructure).store.getFreeCapacity(this.options.resourceType) == 0;
+    /*
+    const creepAmount = creep.store.getUsedCapacity(this.options.resourceType) ?? 0;
+    const storeAmount = (this.target as StoreStructure).store.getFreeCapacity(this.options.resourceType) ?? 0;
+    return creepAmount == 0 || storeAmount <= creepAmount;
+    */
+    return true;
 
   }
   action(creep: Creep): number {

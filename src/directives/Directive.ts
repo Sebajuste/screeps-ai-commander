@@ -87,11 +87,11 @@ export abstract class Directive implements Actor {
 
     registerDaemons() {
         this.spawnDaemons();
-        _.values(this.daemons).forEach(daemon => this.hub.scheduler.registerDaemon(daemon));
+        _.values(this.daemons).forEach(daemon => this.hub.dispatcher.registerDaemon(daemon));
     }
 
     remove() {
-        _.values(this.daemons).forEach(daemon => this.hub.scheduler.removeDaemon(daemon));
+        _.values(this.daemons).forEach(daemon => this.hub.dispatcher.removeDaemon(daemon));
         this.commander.removeDirective(this);
         if (this.flag) {
             // check in case flag was removed manually in last build cycle

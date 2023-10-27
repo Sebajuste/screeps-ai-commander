@@ -5,7 +5,6 @@ import { UpgradeRole } from "agent/roles/roles";
 import { UpgradeArea } from "area/hub/upgrade-area";
 import { Daemon } from "daemons/daemon";
 import { Hub } from "hub/Hub";
-import { log } from "utils/log";
 
 export class UpgradeDaemon extends Daemon {
 
@@ -23,7 +22,6 @@ export class UpgradeDaemon extends Daemon {
     };
 
     const template = this.upgradeArea.container ? UPGRADER_BATTERY_TEMPLATE : UPGRADER_TEMPLATE;
-    const quantity = this.upgradeArea.container && this.upgradeArea.container.store.getUsedCapacity(RESOURCE_ENERGY) < 1000 ? 1 : 2;
 
     const bodyParts = selectBodyParts(template, this.hub.room.energyAvailable);
 
@@ -31,6 +29,8 @@ export class UpgradeDaemon extends Daemon {
       role: 'upgrader',
       bodyParts: bodyParts
     };
+
+    const quantity = this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000 ? 2 : 1;
 
     this.wishList(quantity, setup, options);
 
@@ -47,10 +47,12 @@ export class UpgradeDaemon extends Daemon {
       // Energy required into container
 
       // Request energy into the container
-      this.hub.logisticsNetwork.requestInput(this.upgradeArea.container, RESOURCE_ENERGY);
+      if ((!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 5000) && this.upgradeArea.container.store.getFreeCapacity(RESOURCE_ENERGY) > 400) {
+        this.hub.logisticsNetwork.requestInput(this.upgradeArea.container, RESOURCE_ENERGY);
+      }
 
-      if (this.hub.level < 8 && this.hub.storage && this.upgradeArea.container.store.getFreeCapacity(RESOURCE_ENERGY) >= 1000) {
-        // Request energy from Storage
+      if (this.hub.level < 8 && this.hub.storage && this.hub.storage.store.getUsedCapacity() > 50000 && this.upgradeArea.container.store.getFreeCapacity(RESOURCE_ENERGY) >= 1000) {
+        // Request energy from Storage If no link available
         this.hub.logisticsNetwork.removeRequest(this.hub.storage, RESOURCE_ENERGY);
         this.hub.logisticsNetwork.requestOutput(this.hub.storage, RESOURCE_ENERGY);
       }

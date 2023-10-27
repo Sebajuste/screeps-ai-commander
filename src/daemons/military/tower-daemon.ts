@@ -1,4 +1,7 @@
 import { Actor } from "Actor";
+import { Agent } from "agent/Agent";
+import { CPU } from "cpu/CPU";
+import { PROCESS_PRIORITY_LOW, PROCESS_PRIORITY_NORMAL } from "cpu/process";
 import { Daemon } from "daemons";
 import { Hub } from "hub/Hub";
 import _ from "lodash";
@@ -12,8 +15,13 @@ export class TowerDaemon extends Daemon {
     maximumRepairHit: 100000
   };
 
+  closestHostile: Creep | null;
+  agentInjured?: Agent;
+  structureDamaged?: Structure;
+
   constructor(hub: Hub, initializer: Actor) {
-    super(hub, initializer, 'tower')
+    super(hub, initializer, 'tower');
+    this.closestHostile = null;
   }
 
   private handleEnergyRequests() {
@@ -25,36 +33,35 @@ export class TowerDaemon extends Daemon {
     }
   }
 
-  private towerHandler(tower: StructureTower) {
+  private towerHandler(tower: StructureTower, hostile: Creep | null, agentInjured?: Agent, structureDamaged?: Structure) {
 
     // Defense
-    const closestHostile = tower.pos.findClosestByRange(this.hub.hostilesCreepsByRooms[tower.pos.roomName] ?? []);
+    // const closestHostile = tower.pos.findClosestByRange(this.hub.hostilesCreepsByRooms[tower.pos.roomName] ?? []);
 
-    if (closestHostile) {
-      const r = tower.attack(closestHostile);
-      if (r == OK) {
-        return;
-      } else {
-        log.warning(`${this.print} cannot attack hostile ${closestHostile.name}`)
-      }
+    if (hostile) {
+      CPU.cpu().pushProcess(() => {
+        const r = tower.attack(hostile);
+        if (r == OK) {
+          return;
+        } else {
+          log.warning(`${this.print} cannot attack hostile ${hostile.name}`)
+        }
+      }, PROCESS_PRIORITY_NORMAL - 10);
     }
 
     // heal
     if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > TowerDaemon.Settings.minimumEnergyHeal) {
 
-      const agent = _.chain(this.hub.agents)//
-        .filter(pawn => pawn.pos.roomName == this.room.name && pawn.creep.hits < pawn.creep.hitsMax)//
-        .orderBy(pawn => pawn.creep.hits, ['asc'])//
-        .first()//
-        .value();
+      if (agentInjured) {
 
-      if (agent) {
-        const r = tower.heal(agent.creep);
-        if (r == OK) {
-          return;
-        } else {
-          log.warning(`${this.print} cannot heal ${agent.print}`)
-        }
+        CPU.cpu().pushProcess(() => {
+          const r = tower.heal(agentInjured.creep);
+          if (r == OK) {
+            return;
+          } else {
+            log.warning(`${this.print} cannot heal ${agentInjured.print}`)
+          }
+        }, PROCESS_PRIORITY_NORMAL);
       }
 
     }
@@ -62,12 +69,30 @@ export class TowerDaemon extends Daemon {
     // repair
     if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > TowerDaemon.Settings.minimumEnergyRepair) {
 
-      const damagedStructures = _.filter(this.hub.structuresByRooms[this.pos.roomName] ?? [], structure => structure.hits < structure.hitsMax && structure.hits < TowerDaemon.Settings.maximumRepairHit);
+      // const damagedStructures = _.filter(this.hub.structuresByRooms[this.pos.roomName] ?? [], structure => structure.hits < structure.hitsMax && structure.hits < TowerDaemon.Settings.maximumRepairHit);
 
-      const nearest = _.last(_.sortBy(damagedStructures, structure => structure.pos.getRangeTo(tower.pos)));
+      // const nearest = _.last(_.sortBy(damagedStructures, structure => structure.pos.getRangeTo(tower.pos)));
 
-      if (nearest) {
-        tower.repair(nearest);
+      if (structureDamaged) {
+        CPU.cpu().pushProcess(() => tower.repair(structureDamaged), PROCESS_PRIORITY_LOW);
+      }
+    }
+
+  }
+
+  refresh(): void {
+    super.refresh();
+
+    /*
+    if (this.agentInjured) {
+      this.agentInjured = _.find(this.hub.agents, agent => agent.id == this.agentInjured?.id);
+    }
+    */
+
+    if (this.structureDamaged) {
+      this.structureDamaged = _.find(this.hub.structuresByRooms[this.pos.roomName], structure => structure.id == this.structureDamaged?.id);
+      if (this.structureDamaged && this.structureDamaged.hits == this.structureDamaged.hitsMax) {
+        this.structureDamaged = undefined;
       }
     }
 
@@ -75,8 +100,36 @@ export class TowerDaemon extends Daemon {
 
   init(): void {
 
-    if (!this.hub.storage) {
-      // Request energy if no supplier are present/planned
+    if (this.hub.towers.length == 0) {
+      // No tower
+      return;
+    }
+
+    // Defense
+    if ((this.hub.hostilesCreepsByRooms[this.pos.roomName] ?? []).length > 0) {
+      this.closestHostile = this.pos.findClosestByRange(this.hub.hostilesCreepsByRooms[this.pos.roomName] ?? []);
+    } else {
+      this.closestHostile = null;
+    }
+
+    /*
+    if ((!this.agentInjured && Game.time % 10 == 0) || (this.agentInjured && this.agentInjured.hits == this.agentInjured.hitsMax)) {
+      this.agentInjured = _.chain(this.hub.agents)//
+        .filter(agent => agent.pos.roomName == this.room.name && agent.hits < agent.hitsMax)//
+        .orderBy(agent => agent.hits, ['asc'])//
+        .first()//
+        .value();
+    }
+    */
+
+    /*
+    const damagedStructures = _.filter(this.hub.structuresByRooms[this.pos.roomName] ?? [], structure => structure.hits < structure.hitsMax && structure.hits < TowerDaemon.Settings.maximumRepairHit);
+
+    this.structureDamaged = damagedStructures[0];
+    */
+
+    if (!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) == 0) {
+      // Request energy if no supplier are present/planned or storage is empty
       this.handleEnergyRequests();
     }
 
@@ -84,7 +137,7 @@ export class TowerDaemon extends Daemon {
 
   run(): void {
 
-    this.hub.towers.forEach(tower => this.towerHandler(tower));
+    this.hub.towers.forEach(tower => this.towerHandler(tower, this.closestHostile, this.agentInjured, this.structureDamaged));
 
   }
 

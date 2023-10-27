@@ -96,9 +96,11 @@ export class EnergySourceDirective extends Directive {
 
   private buildHandler() {
 
+    /*
     if (this.pos.roomName != this.hub.room.name) {
       return;
     }
+    */
 
     if (this.hub.level < EnergySourceDirective.Setting.rclContainer) {
       return;
@@ -112,7 +114,7 @@ export class EnergySourceDirective extends Directive {
       }
     }
 
-    if (!this._linkCache.value && !this._constructionSiteCache.value && this.hub.links.length >= 1) {
+    if (this.pos.roomName == this.hub.room.name && !this._linkCache.value && !this._constructionSiteCache.value && this.hub.links.length >= 1) {
       // Create Link if required
       const r = this.linkPos.createConstructionSite(STRUCTURE_LINK);
       if (r != OK) {

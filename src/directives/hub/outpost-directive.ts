@@ -3,6 +3,7 @@ import { Hub } from "hub/Hub";
 import { Directive } from "directives/Directive";
 import _ from "lodash";
 import { DefendDaemon } from "daemons/military/defend-daemon";
+import { ReserveDaemon } from "daemons/expend/reserve-daemon";
 
 
 export interface OutpostMemory {
@@ -18,6 +19,7 @@ export class OutpostDirective extends Directive {
 
     daemons: {
         defend: DefendDaemon,
+        reserve?: ReserveDaemon
     };
 
     constructor(commander: Commander, flag: Flag, hub: Hub) {
@@ -31,6 +33,9 @@ export class OutpostDirective extends Directive {
 
     spawnDaemons(): void {
         this.daemons.defend = new DefendDaemon(this.hub, this);
+        if (this.hub.level > 4) {
+            this.daemons.reserve = new ReserveDaemon(this.hub, this);
+        }
     }
 
     init(): void {

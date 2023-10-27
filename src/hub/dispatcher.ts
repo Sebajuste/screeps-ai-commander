@@ -8,7 +8,7 @@ import _ from "lodash";
 import { log } from "utils/log";
 
 
-export class Scheduler {
+export class Dispatcher {
 
   static Settings = {
     areaPriotityOffset: 1,
@@ -103,33 +103,52 @@ export class Scheduler {
 
   getDaemonReport(): { data: string[][], styles: TextStyle[] } {
 
-    const roledata: string[][] = [];
+    // const roledata: string[][] = [];
     const styles: TextStyle[] = [];
 
-    for (const daemon of this.daemons) {
-      roledata.push([`${daemon.name}@${daemon.pos.roomName}`, `${daemon.agents.length}`]);
-      styles.push({});
-    }
+    const roledata: string[][] = _.chain(this.daemons)//
+      .orderBy(daemon => Math.max(daemon.performanceReport['init'] ?? 0, daemon.performanceReport['run'] ?? 0), ['desc'])//
+      .map(daemon => [`${daemon.name}@${daemon.pos.roomName}`, `  ${daemon.agents.length} - ${daemon.performanceReport['init'] ?? '---'} ${daemon.performanceReport['run'] ?? '---'}`])//
+      .value();
+
+    const total = _.reduce(this.daemons, (acc, daemon) => [acc[0] + (daemon.performanceReport['init'] ?? 0), acc[1] + (daemon.performanceReport['run'] ?? 0)], [0, 0]);
+
+    roledata.push(['TOTAL', `${Math.round(total[0] * 100 + Number.EPSILON) / 100} + ${Math.round(total[1] * 100 + Number.EPSILON) / 100} = ${Math.round((total[0] + total[1]) * 100 + Number.EPSILON) / 100}`]);
+
+    /*
+  for (const daemon of this.daemons) {
+    roledata.push([`${daemon.name}@${daemon.pos.roomName}`, `  ${daemon.agents.length} - ${daemon.performanceReport['init'] ?? '---'} ${daemon.performanceReport['run'] ?? '---'}`]);
+    styles.push({});
+  }
+  */
 
     return { data: roledata, styles: styles };
   }
 
   refresh() {
-    this.directives.forEach(directive => CPU.pushProcess(() => directive.refresh(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.directivePriotityOffset));
-    this.daemons.forEach(daemon => CPU.pushProcess(() => daemon.refresh(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.daemonPriotityOffset));
+    this.directives.forEach(directive => CPU.pushProcess(() => directive.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset));
+    this.daemons.forEach(daemon => CPU.pushProcess(() => daemon.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.daemonPriotityOffset));
   }
 
   init() {
-    this.directives.forEach(directive => CPU.pushProcess(() => directive.init(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.directivePriotityOffset + 10));
+    this.directives.forEach(directive => CPU.pushProcess(() => directive.init(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset + 10));
     this.daemons.forEach(daemon => CPU.pushProcess(() => {
+      const start = Game.cpu.getUsed();
       daemon.preInit();
       daemon.init();
-    }, PROCESS_PRIORITY_HIGHT + Scheduler.Settings.daemonPriotityOffset + 10));
+      const cpuCost = Game.cpu.getUsed() - start;
+      daemon.performanceReport['init'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.daemonPriotityOffset + 10));
   }
 
   run() {
-    this.directives.forEach(directive => CPU.pushProcess(() => directive.run(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.directivePriotityOffset + 20));
-    this.daemons.forEach(daemon => CPU.pushProcess(() => daemon.run(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.daemonPriotityOffset + 20));
+    this.directives.forEach(directive => CPU.pushProcess(() => directive.run(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset + 20));
+    this.daemons.forEach(daemon => CPU.pushProcess(() => {
+      const start = Game.cpu.getUsed();
+      daemon.run();
+      const cpuCost = Game.cpu.getUsed() - start;
+      daemon.performanceReport['run'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.daemonPriotityOffset + 20));
   }
 
 }

@@ -34,6 +34,8 @@ export class Commander {
     const agents: Dictionary<Agent> = {};
     for (const name in Game.creeps) {
       agents[name] = new Agent(Game.creeps[name]);
+      //agents[name] = Game.creeps[name] as Agent;
+      //agents[name].refresh();
     }
     return agents;
   }
@@ -49,92 +51,6 @@ export class Commander {
       hub.agents = agentsByHub[hubName];
     }
   }
-
-  private wrapNewAgents() {
-    const creepNames = Object.keys(Game.creeps);
-
-    const newCreepNames = _.filter(creepNames, name => _.find(this.agents, agent => agent.name == name) == undefined);
-    const newAgents = _.map(newCreepNames, name => new Agent(Game.creeps[name]));
-
-    return newAgents;
-    /*
-    newAgents.forEach(agent => {
-      this.agents[agent.name] = agent;
-    });
-
-    return this.agents;
-    */
-  }
-
-  private registerNewAgents(): void {
-
-    const agentNames = Object.keys(this.agents);
-
-    // const oldCreepNames = _.filter(agentNames, name => Game.creeps[name] == undefined);
-
-    const validAgentNames = _.filter(agentNames, name => Game.creeps[name] != undefined);
-
-    let updated = false;
-    if (validAgentNames.length < agentNames.length) {
-      // Remove from cach invalid Agent
-      updated = true;
-      this.agents = _.reduce(validAgentNames, (acc, name) => {
-        acc[name] = this.agents[name];
-        return acc;
-      }, {} as Dictionary<Agent>);
-
-    }
-
-    // Remove from cach invalid Agent
-    /*
-    oldCreepNames.forEach(name => {
-      log.debug(`DELETE agent `, name);
-      updated = true;
-      delete this.agents[name];
-    });
-    */
-
-    // Update existing Agent creep
-    _.forEach(_.values(this.agents) as Agent[], agent => {
-      if (agent) {
-        agent.refresh();
-      }
-    });
-
-    // Wrap new Agent
-    const newAgents = this.wrapNewAgents();
-    log.debug('registerNewAgents : ', Object.keys(newAgents).length, ' ', JSON.stringify(_.map(newAgents, agent => agent.name)));
-
-    if (Object.keys(newAgents).length > 0) {
-      // Add new agents
-
-      updated = true;
-
-      this.agents = _.merge(this.agents, newAgents);
-
-      /*
-      const newAgentsByHub = _.groupBy(newAgents, agent => agent.memory.hub) as { [colonieName: string]: Agent[] };
-      for (const hubName in newAgentsByHub) {
-        // Merge new and old agents
-        const hub = this.hubs[hubName];
-        const newHubAgents = newAgentsByHub[hubName];
-        hub.agents = _.concat([...hub.agents, ...newHubAgents]);
-      }
-      */
-
-    }
-
-    if (updated) {
-      const agentsByHub = _.groupBy(this.agents, agent => agent.memory.hub);
-      for (const hubName in agentsByHub) {
-        const hub = this.hubs[hubName];
-        hub.agents = agentsByHub[hubName];
-      }
-    }
-
-  }
-
-
 
 
   private registerHubs() {
@@ -193,7 +109,7 @@ export class Commander {
       const directive = createDirective(this, flag, hub);
       if (directive) {
         this.directives[flag.name] = directive;
-        hub.scheduler.registerDirective(directive);
+        hub.dispatcher.registerDirective(directive);
         directive.registerDaemons();
       } else {
         // Directive.getFlagColony(Game.flags[name]).flags.push(Game.flags[name]);

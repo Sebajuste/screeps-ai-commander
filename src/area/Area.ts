@@ -30,7 +30,7 @@ export abstract class Area implements Actor {
 
   registerDaemons() {
     this.spawnDaemons();
-    _.values(this.daemons).forEach(daemon => this.hub.scheduler.registerDaemon(daemon));
+    _.values(this.daemons).forEach(daemon => this.hub.dispatcher.registerDaemon(daemon));
   }
 
   refresh() {

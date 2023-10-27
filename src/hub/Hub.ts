@@ -1,7 +1,7 @@
 import { CPU } from "cpu/CPU";
 import { Mem } from "memory/Memory";
 import { log } from "utils/log";
-import { Scheduler } from "./Scheduler";
+import { Dispatcher } from "./dispatcher";
 import { Agent } from "agent/Agent";
 import { AgentFactoryArea } from "area/hub/agent-factory";
 import { Area } from "area/Area";
@@ -52,7 +52,7 @@ export class Hub {
 
   pos: RoomPosition;
 
-  scheduler: Scheduler;
+  dispatcher: Dispatcher;
   logisticsNetwork: LogisticsNetwork;
   linkNetwork: LinkNetwork;
 
@@ -106,7 +106,7 @@ export class Hub {
     this.id = id;
     this.name = name;
     this.ref = name;
-    this.scheduler = new Scheduler(this);
+    this.dispatcher = new Dispatcher(this);
     this.logisticsNetwork = new LogisticsNetwork(this);
     this.linkNetwork = new LinkNetwork(this);
 
@@ -182,6 +182,7 @@ export class Hub {
     this.pos = (this.storage || this.spawns[0] || this.controller).pos;
 
     this.structuresByRooms = _.reduce(this.rooms, (acc, room) => {
+      //acc[room.name] = _.remove(room.find(FIND_STRUCTURES) as Structure[], structure => structure.id == this.controller.id);
       acc[room.name] = room.find(FIND_STRUCTURES) as Structure[];
       return acc;
     }, {} as Dictionary<Structure[]>);
@@ -200,7 +201,12 @@ export class Hub {
     this.constructionSites = _.filter(Game.constructionSites, site => outputNames.includes(site.pos.roomName));
     this.constructionSitesByRooms = _.groupBy(this.constructionSites, site => site.pos.roomName);
 
-    this.sources = _.slice(_.orderBy(_.flatten(_.map(this.rooms, room => room.find(FIND_SOURCES))), source => getMultiRoomRange(source.pos, this.pos), ['asc']), 0, Settings.hubMaxSource(this.level));
+    this.sources = _.chain(this.rooms)//
+      .map(room => room.find(FIND_SOURCES))//
+      .flatten()//
+      .orderBy(source => getMultiRoomRange(source.pos, this.pos), ['asc'])//
+      .slice(0, Settings.hubMaxSource(this.level))//
+      .value();
 
     this.sources.forEach(source => setHarvestFlag(this, source));
 
@@ -241,7 +247,7 @@ export class Hub {
 
   private drawAgentReport(coord: Coord): Coord {
     let { x, y } = coord;
-    const roledata = this.scheduler.getAgentReport();
+    const roledata = this.dispatcher.getAgentReport();
     const tablePos = new RoomPosition(x, y, this.room.name);
     y = Visualizer.info_box(`${this.name} Agents [${this.agents.length}]`, roledata, tablePos, 10);
     return { x, y };
@@ -249,9 +255,9 @@ export class Hub {
 
   private drawDaemonReport(coord: Coord): Coord {
     let { x, y } = coord;
-    const report = this.scheduler.getDaemonReport();
+    const report = this.dispatcher.getDaemonReport();
     const tablePos = new RoomPosition(x, y, this.room.name);
-    y = Visualizer.info_box(`${this.name} Daemons [${this.scheduler.daemons.length}]`, report.data, tablePos, 10);
+    y = Visualizer.info_box(`${this.name} Daemons [${this.dispatcher.daemons.length}]`, report.data, tablePos, 10);
     return { x, y };
   }
 
@@ -269,16 +275,16 @@ export class Hub {
     this.logisticsNetwork.refresh();
     this.linkNetwork.refresh();
 
-    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.refresh(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.areaPriotityOffset));
-    this.scheduler.refresh();
+    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset));
+    this.dispatcher.refresh();
 
     this.roomPlanner.refresh();
   }
 
   init() {
 
-    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.init(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.areaPriotityOffset + 10));
-    this.scheduler.init();
+    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.init(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 10));
+    this.dispatcher.init();
 
     CPU.cpu().pushProcess(() => this.roomPlanner.init());
 
@@ -288,8 +294,8 @@ export class Hub {
 
     const start = Game.cpu.getUsed();
 
-    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.run(), PROCESS_PRIORITY_HIGHT + Scheduler.Settings.areaPriotityOffset + 20));
-    this.scheduler.run();
+    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.run(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 20));
+    this.dispatcher.run();
 
     CPU.cpu().pushProcess(() => this.linkNetwork.run(), PROCESS_PRIORITY_HIGHT + 30);
 

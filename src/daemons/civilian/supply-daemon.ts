@@ -11,6 +11,11 @@ import { log } from "utils/log";
 
 export class SupplyDaemon extends Daemon {
 
+
+  sources?: StoreStructure[];
+
+  destinations?: StoreStructure[];
+
   constructor(initializer: Actor) {
     super(initializer.hub, initializer, 'supply');
   }
@@ -40,36 +45,54 @@ export class SupplyDaemon extends Daemon {
       this.wishList(count, setup, options);
     }
 
+  }
 
+  private populateStructure() {
+
+    if (!this.sources) {
+      const containers = _.filter(this.hub.containers, container => container.pos.roomName == this.pos.roomName && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0);
+
+      this.sources = this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0 ? [this.hub.storage] : containers;
+    }
+
+    if (!this.destinations || this.destinations.length == 0) {
+      this.destinations = _.filter(this.hub.structures, (structure: { structureType: string, store: StoreDefinition }) => {
+        return (structure.structureType == STRUCTURE_EXTENSION ||
+          structure.structureType == STRUCTURE_SPAWN ||
+          structure.structureType == STRUCTURE_LAB ||
+          structure.structureType == STRUCTURE_TOWER) &&
+          structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0;
+      }) as StoreStructure[];
+    }
+  }
+
+  refresh(): void {
+    super.refresh();
+
+    this.sources = undefined;
+    this.destinations = undefined;
   }
 
   init(): void {
+
     this.spawnSuppliers();
 
     const storage = this.hub.storage;
 
     if (storage && storage.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubStorageMaxEnergy && !this.hub.logisticsNetwork.haveRequest(storage, RESOURCE_ENERGY)) {
-      log.debug(`${this.print} request input energy to Storage`);
       this.hub.logisticsNetwork.requestInput(storage, RESOURCE_ENERGY, Settings.hubStorageMaxEnergy);
     }
 
   }
 
   run(): void {
-    const containers = _.filter(this.hub.containers, container => container.pos.roomName == this.pos.roomName && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0);
 
-    const sources = this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0 ? [this.hub.storage] : containers;
-
-    const destinations = _.filter(this.hub.structures, (structure: { structureType: string, store: StoreDefinition }) => {
-      return (structure.structureType == STRUCTURE_EXTENSION ||
-        structure.structureType == STRUCTURE_SPAWN ||
-        structure.structureType == STRUCTURE_LAB ||
-        structure.structureType == STRUCTURE_TOWER) &&
-        structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0;
-    }) as StoreStructure[];
 
     this.autoRun(this.agents, supplier => {
-      const task = SupplierRole.pipeline(this.hub, supplier, sources, destinations);
+
+      this.populateStructure();
+
+      const task = SupplierRole.pipeline(this.hub, supplier, this.sources!, this.destinations!);
       if (!task) {
         return [Tasks.wait(new RoomPosition(this.pos.x - 1, this.pos.y + 6, this.pos.roomName))]; // Wait on other position    
       }

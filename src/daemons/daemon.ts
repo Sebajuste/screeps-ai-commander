@@ -22,6 +22,7 @@ export abstract class Daemon implements Actor {
 
   private _agentByRole?: { [name: string]: Agent[] }; // creeps cache
   agentUsageReport: { [roleName: string]: [number, number] | undefined };
+  performanceReport: { [stat: string]: number };
 
   private lastRefreshTime: number;
 
@@ -33,6 +34,9 @@ export abstract class Daemon implements Actor {
     this.priority = priority;
     this.pos = initializer.pos;
     this.lastRefreshTime = Game.time;
+
+    this.agentUsageReport = {};
+    this.performanceReport = {};
   }
 
   get reachable(): boolean {
@@ -55,15 +59,6 @@ export abstract class Daemon implements Actor {
   get print(): string {
     return '<a href="#!/room/' + Game.shard.name + '/' + this.pos.roomName + '">[' + this.ref + ']</a>';
   }
-
-  /*
-  protected generateProtoCreep(setup: AgentSetup) {
-    const spawner = this.hub.areas.agentFactory;
-    if (spawner) {
-      spawner.generateProtoCreep(setup, this);
-    }
-  }
-  */
 
   protected agentReport(role: string, currentAmt: number, neededAmt: number) {
     if (!this.agentUsageReport[role]) {
@@ -143,6 +138,7 @@ export abstract class Daemon implements Actor {
   refresh() {
     this._agentByRole = undefined;
     this.agentUsageReport = {};
+    this.performanceReport = {};
   }
 
   preInit() {

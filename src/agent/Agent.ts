@@ -55,6 +55,7 @@ export class Agent {
     this.memory.lastRunTick = v;
   }
 
+
   get id(): Id<Creep> {
     return this.creep.id;
   }
@@ -75,13 +76,25 @@ export class Agent {
     return this.creep.room;
   }
 
+  get body() {
+    return this.creep.body;
+  }
+
+  get hits() {
+    return this.creep.hits;
+  }
+
+  get hitsMax() {
+    return this.creep.hitsMax;
+  }
+
   get print(): string {
-    return `<a href="#!/room/${Game.shard.name}/${this.creep.pos.roomName}">[${this.creep.name}@${this.creep.pos.roomName}, x:${this.creep.pos.x},y${this.creep.pos.y}:]</a>`;
+    return `<a href="#!/room/${Game.shard.name}/${this.pos.roomName}">[${this.name}@${this.pos.roomName}, x:${this.pos.x},y${this.pos.y}:]</a>`;
   }
 
   haveBodyPart(bodyPart: string) {
-    for (const index in this.creep.body) {
-      const item = this.creep.body[index];
+    for (const index in this.body) {
+      const item = this.body[index];
       if (item.type === bodyPart && item.hits > 0) {
         return true;
       }
@@ -90,9 +103,12 @@ export class Agent {
   }
 
   refresh() {
-    this.creep = Game.creeps[this.creep.name];
-    this.memory = this.creep.memory as AgentMemory;
-    this.taskPipelineHandler.creep = this.creep;
+    //this.creep = Game.creeps[this.creep.name];
+    //this.memory = this.creep.memory as AgentMemory;
+    // this.taskPipelineHandler.creep = this.creep;
+    if (!this.taskPipelineHandler) {
+      this.taskPipelineHandler = new TaskPipelineHandler(this.creep);
+    }
   }
 
   run() {

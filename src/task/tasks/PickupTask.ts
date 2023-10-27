@@ -1,11 +1,11 @@
 import { Task } from "task/Task";
 
-export const PICKUP_TASK_NAME = 'pickup';
+export const TASK_PICKUP_NAME = 'pickup';
 
 export class PickupTask extends Task {
 
   constructor(resource: Resource<ResourceConstant>) {
-    super(PICKUP_TASK_NAME, resource);
+    super(TASK_PICKUP_NAME, resource);
   }
 
   isFinished(creep: Creep): boolean {

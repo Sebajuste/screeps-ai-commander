@@ -17,7 +17,7 @@ import { ProbeDirective } from "directives/expend/probe-directive";
 import { BuildDirective } from "directives/hub/build-directive";
 import { OutpostDirective } from "directives/hub/outpost-directive";
 import { EnergySourceDirective } from "directives/resources/energy-source-directive";
-import { Scheduler } from "hub/Scheduler";
+import { Dispatcher } from "hub/dispatcher";
 import { Traveler } from "libs/traveler/traveler";
 import { BuilderRole, HarvestRole, HaulerRole, ScoutRole, UpgradeRole } from "agent/roles/roles";
 import { BuildTask } from "task/tasks/BuildTask";
@@ -51,7 +51,7 @@ function cleanMemory() {
 function registerProfiler() {
   profiler.registerClass(Commander, 'Commander');
   profiler.registerClass(Hub, 'Hub');
-  profiler.registerClass(Scheduler, 'Scheduler');
+  profiler.registerClass(Dispatcher, 'Scheduler');
   profiler.registerClass(LogisticsNetwork, 'LogisticsNetwork');
   profiler.registerClass(Mem, 'Mem');
   profiler.registerClass(Agent, 'Agent');

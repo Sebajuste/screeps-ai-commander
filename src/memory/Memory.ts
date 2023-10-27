@@ -53,8 +53,10 @@ export class MemCache<T, S = T> {
 
   set value(v: T | null) {
     if (v) {
-      this._cache = v;
-      this.memory.data = this.serialize(v);
+      if (v !== this._cache) {
+        this._cache = v;
+        this.memory.data = this.serialize(v);
+      }
     } else {
       this.clear();
     }
@@ -84,7 +86,9 @@ export class MemCacheObject<T extends _HasId> extends MemCache<T, Id<_HasId>> {
 
   refresh(memory: any) {
     this.memory = Mem.wrap(memory, this.name, {});
-    this._cache = undefined;
+    if (this._cache) {
+      this.value = Game.getObjectById(this._cache.id);
+    }
   }
 
 }

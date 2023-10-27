@@ -7,7 +7,7 @@ import { Daemon } from "daemons/daemon";
 import { EnergySourceDirective } from "directives/resources/energy-source-directive";
 import { Hub } from "hub/Hub";
 import _ from "lodash";
-import { Mem } from "memory/Memory";
+import { Mem, MemCacheObject } from "memory/Memory";
 import { log } from "utils/log";
 import { findClosestByLimitedRange } from "utils/util-pos";
 import { HaulerStat } from "./hauler-daemon";
@@ -20,16 +20,24 @@ export class HarvestDaemon extends Daemon {
 
   containerFull: boolean;
 
+  ennemyDetected: boolean;
+
   memory: HaulerStat;
+
+  _dropCache: MemCacheObject<Resource>;
 
   constructor(hub: Hub, initializer: EnergySourceDirective, source: Source, priority: number) {
     super(hub, initializer, 'harvest', priority);
     this.initializer = initializer;
     this.source = source;
     this.containerFull = false;
-    this.memory = Mem.wrap(initializer.memory, 'haulerStat', { eta: 0 });
+    this.ennemyDetected = false;
 
+
+    this.memory = Mem.wrap(initializer.memory, 'haulerStat', { eta: 0 });
     this.memory.eta = (initializer.flag.memory as any).hubDistance / 2;
+
+    this._dropCache = new MemCacheObject<Resource>(this.memory, 'drop');
   }
 
   private spawnHandler() {
@@ -52,6 +60,24 @@ export class HarvestDaemon extends Daemon {
 
   }
 
+  private haveEnnemy() {
+
+    if (Game.time % 10 == 0) {
+      this.ennemyDetected = findClosestByLimitedRange(this.pos, this.hub.hostilesCreepsByRooms[this.room.name] ?? [], 5) != null;
+    }
+    return this.ennemyDetected;
+
+  }
+
+  get drop(): Resource | null {
+    return this._dropCache.value;
+  }
+
+  refresh(): void {
+    super.refresh();
+    this._dropCache.refresh(this.memory);
+  }
+
   init(): void {
 
     const roomReachable = Game.rooms[this.pos.roomName] != undefined;
@@ -61,7 +87,8 @@ export class HarvestDaemon extends Daemon {
       return;
     }
 
-    const haveEnnemy = roomReachable && findClosestByLimitedRange(this.pos, this.hub.hostilesCreepsByRooms[this.room.name] ?? [], 5) != null;
+    const haveEnnemy = this.haveEnnemy();
+
     this.containerFull = (this.initializer.container && this.initializer.container.store.getFreeCapacity(RESOURCE_ENERGY) == 0) ?? false;
 
     if (!haveEnnemy && !this.containerFull) {
@@ -70,11 +97,34 @@ export class HarvestDaemon extends Daemon {
       this.memory.inputRate = 0;
     }
 
-    const drop = findClosestByLimitedRange(this.pos, this.hub.dropsByRooms[this.room.name], 1);
-    if (drop) {
-      // Output the energy droped
-      this.hub.logisticsNetwork.requestOutput(drop, drop.resourceType);
+    if (this.initializer.link) {
+      if (this.initializer.link.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+        // Output the energy into Link
+        this.hub.linkNetwork.requestOutput(this.initializer.link);
+      }
+      return;
     }
+
+    if (this.initializer.container) {
+      if (this.initializer.container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+        // Output the energy into container
+        this.hub.logisticsNetwork.requestOutput(this.initializer.container, RESOURCE_ENERGY);
+      }
+      return;
+    }
+
+    if (!this._dropCache.isValid()) {
+      this._dropCache.value = findClosestByLimitedRange(this.pos, this.hub.dropsByRooms[this.room.name], 1);
+    }
+
+    // Output the energy droped
+    if (this.drop) {
+      this.hub.logisticsNetwork.requestOutput(this.drop, this.drop.resourceType);
+    }
+
+
+    /*
+    const haveStoreStructure = this.initializer.container || this.initializer.link;
 
     if (this.initializer.container && this.initializer.container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
       // Output the energy into container
@@ -85,6 +135,18 @@ export class HarvestDaemon extends Daemon {
       // Output the energy into Link
       this.hub.linkNetwork.requestOutput(this.initializer.link);
     }
+
+    if (!haveStoreStructure && this.drop) {
+
+      if (!this._dropCache.isValid()) {
+        this._dropCache.value = findClosestByLimitedRange(this.pos, this.hub.dropsByRooms[this.room.name], 1);
+      }
+
+      // Output the energy droped
+      this.hub.logisticsNetwork.requestOutput(this.drop, this.drop.resourceType);
+    }
+    */
+
 
   }
 

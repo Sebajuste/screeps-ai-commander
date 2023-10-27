@@ -3,11 +3,9 @@ import { AgentRequestOptions, AgentSetup } from "agent/Agent";
 import { AGENT_PRIORITIES } from "agent/agent-setup";
 import { GuardRole } from "agent/roles/roles";
 import { Daemon } from "daemons";
-import { Directive } from "directives/Directive";
 import { Hub } from "hub/Hub";
 import _ from "lodash";
 import { createOutpostDirective } from "room/room-analyse";
-import { getMultiRoomRange } from "utils/util-pos";
 
 export class GuardDaemon extends Daemon {
 
@@ -75,7 +73,6 @@ export class GuardDaemon extends Daemon {
     });
 
     this.autoRun(this.agents, agent => GuardRole.pipeline(agent, (agent.memory as any).targetRoom));
-
 
   }
 

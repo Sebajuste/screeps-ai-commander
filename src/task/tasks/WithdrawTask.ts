@@ -1,12 +1,12 @@
 import { Task } from "task/Task";
 import { StoreStructure } from "task/task-builder";
 
-export const WITHDRAW_TASK_NAME = 'withdraw';
+export const TASK_WITHDRAW_NAME = 'withdraw';
 
 export class WithdrawTask extends Task {
 
   constructor(target: StoreStructure | Tombstone, resourceType: ResourceConstant) {
-    super(WITHDRAW_TASK_NAME, target, { targetRange: 1, oneShoot: true, resourceType: resourceType })
+    super(TASK_WITHDRAW_NAME, target, { targetRange: 1, oneShoot: true, resourceType: resourceType })
   }
 
   isFinished(creep: Creep): boolean {

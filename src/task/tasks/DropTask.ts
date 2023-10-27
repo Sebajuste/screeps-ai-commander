@@ -2,12 +2,12 @@ import { Task } from "task/Task";
 import { printCreep } from "utils/creep-utils";
 import { log } from "utils/log";
 
-export const DROP_TASK_NAME = 'drop';
+export const TASK_DROP_NAME = 'drop';
 
 export class DropTask extends Task {
 
   constructor(pos: RoomPosition, resourceType: ResourceConstant, amount?: number) {
-    super(DROP_TASK_NAME, { pos: pos }, { targetRange: 1, oneShoot: true, resourceType: resourceType, amount: amount })
+    super(TASK_DROP_NAME, { pos: pos }, { targetRange: 1, oneShoot: true, resourceType: resourceType, amount: amount })
   }
 
   isFinished(creep: Creep): boolean {

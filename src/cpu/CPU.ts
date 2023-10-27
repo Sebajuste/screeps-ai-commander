@@ -52,6 +52,27 @@ export class CPU {
     } as Process);
   }
 
+
+  runNextProcess() {
+
+    if (this.processQueue.length == 0) {
+      return;
+    }
+
+    const process = this.processQueue.shift();
+    if (process) {
+
+      try {
+        process.runnable();
+      } catch (err: any) {
+        log.fatal(err);
+        log.fatal(err.stack);
+      }
+
+    }
+
+  }
+
   public run() {
 
     if (Game.cpu.bucket < 9000) {
@@ -109,7 +130,13 @@ export class CPU {
 
     this.clean();
 
-    log.info(`[${Game.time}] bucket: ${Game.cpu.bucket}, CPU used: ${statistics.total}, tasks: ${statistics.count}, avg: ${statistics.total / Math.max(1, statistics.count)}, byCreeps: ${statistics.total / Math.max(1, Object.keys(Game.creeps).length)}, taskDropped: ${taskDropped}`);
+    // Sanitaze
+
+    statistics.total = Math.round((statistics.total + Number.EPSILON) * 100) / 100;
+    const avg = Math.round(((statistics.total / Math.max(1, statistics.count)) + Number.EPSILON) * 100) / 100;
+    const costByCreep = Math.round((statistics.total / Math.max(1, Object.keys(Game.creeps).length) + Number.EPSILON) * 100) / 100;
+
+    log.info(`[${Game.time}] bucket: ${Game.cpu.bucket}, CPU used: ${statistics.total}, tasks: ${statistics.count}, avg: ${avg}, byCreeps: ${costByCreep}, taskDropped: ${taskDropped} `);
 
   }
 
