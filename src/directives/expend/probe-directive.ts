@@ -12,7 +12,7 @@ export class ProbeDirective extends Directive {
   };
 
   constructor(commander: Commander, flag: Flag, hub: Hub) {
-    super(commander, flag, hub)
+    super(commander, flag, hub);
   }
 
   spawnDaemons(): void {

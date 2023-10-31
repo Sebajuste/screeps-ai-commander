@@ -4,14 +4,15 @@ import { AGENT_PRIORITIES, UPGRADER_BATTERY_TEMPLATE, UPGRADER_TEMPLATE } from "
 import { UpgradeRole } from "agent/roles/roles";
 import { UpgradeArea } from "area/hub/upgrade-area";
 import { Daemon } from "daemons/daemon";
-import { Hub } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
+import { log } from "utils/log";
 
 export class UpgradeDaemon extends Daemon {
 
   upgradeArea: UpgradeArea;
 
   constructor(hub: Hub, upgradeArea: UpgradeArea) {
-    super(hub, upgradeArea, 'upgrade');
+    super(hub, upgradeArea, 'upgrade', RunActivity.Upgrade);
     this.upgradeArea = upgradeArea;
   }
 
@@ -30,7 +31,7 @@ export class UpgradeDaemon extends Daemon {
       bodyParts: bodyParts
     };
 
-    const quantity = this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000 ? 2 : 1;
+    const quantity = this.hub.links.length == 0 ? 2 : 1;
 
     this.wishList(quantity, setup, options);
 
@@ -57,8 +58,10 @@ export class UpgradeDaemon extends Daemon {
         this.hub.logisticsNetwork.requestOutput(this.hub.storage, RESOURCE_ENERGY);
       }
 
-    } else if (this.agents.length > 0) {
+    }
+    if (!this.upgradeArea.container && this.agents.length > 0) {
       // Request energy on ground
+      log.debug(`Upgrade energy drop at `, this.upgradeArea.dropPos);
       this.hub.logisticsNetwork.requestDrop(this.upgradeArea.dropPos, RESOURCE_ENERGY);
     }
 
@@ -66,9 +69,9 @@ export class UpgradeDaemon extends Daemon {
 
   run(): void {
 
-    const storeStructure = this.upgradeArea.link && this.upgradeArea.link.store.getUsedCapacity(RESOURCE_ENERGY) > 0 ? this.upgradeArea.link : this.upgradeArea.container;
+    // const storeStructure = this.upgradeArea.link && this.upgradeArea.link.store.getUsedCapacity(RESOURCE_ENERGY) > 0 ? this.upgradeArea.link : this.upgradeArea.container;
 
-    this.autoRun(this.agents, agent => UpgradeRole.pipeline(this.hub, agent, storeStructure));
+    this.autoRun(this.agents, agent => UpgradeRole.pipeline(this.hub, agent, this.upgradeArea.container, this.upgradeArea.link));
 
   }
 

@@ -3,12 +3,16 @@ import { Mem } from "memory/Memory";
 import { getRoomRange } from "utils/util-pos";
 
 
+export interface MineralInfo {
+  type: MineralConstant,
+  density: number
+}
 
 export interface ExploredRoom {
   tick: number;
   haveEnnemy: boolean;
   sourceCount: number;
-  minerals: MineralConstant[];
+  minerals: MineralInfo[];
   exits: string[];
   // bunkerSpace: boolean;
   controlledBy?: string;
@@ -121,7 +125,7 @@ export class Exploration {
 
   analyseRoom(room: Room) {
 
-    if (this.hasRoom(room.name) && this.getRoom(room.name)?.tick != Game.time) {
+    if (room && this.hasRoom(room.name) && this.getRoom(room.name)?.tick != Game.time) {
       // Already updated
       return;
     }
@@ -139,10 +143,10 @@ export class Exploration {
     if (!this.hasRoom(room.name)) {
       // const anchor = RoomPlanner.determineLayoutPosition(bunkerLayout, roomName, 8);
 
-      const sourceCount = Game.rooms[room.name].find(FIND_SOURCES).length;
-      const minerals = _.map(Game.rooms[room.name].find(FIND_MINERALS), mineral => mineral.mineralType);
+      const sourceCount = room.find(FIND_SOURCES).length;
+      const minerals = _.map(room.find(FIND_MINERALS), mineral => ({ type: mineral.mineralType, density: mineral.density } as MineralInfo));
       const exists = _.values(Game.map.describeExits(room.name));
-      const controllerPos = Game.rooms[room.name].controller?.pos;
+      const controllerPos = room.controller?.pos;
 
       const info = {
         tick: Game.time,

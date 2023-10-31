@@ -4,6 +4,7 @@ import { selectBodyParts } from "agent/agent-builder";
 import { AGENT_PRIORITIES, SUPPLY_TEMPLATE } from "agent/agent-setup";
 import { SupplierRole } from "agent/roles/roles";
 import { Daemon } from "daemons";
+import { RunActivity } from "hub/Hub";
 import _ from "lodash";
 import { Settings } from "settings";
 import { StoreStructure, Tasks } from "task/task-builder";
@@ -17,7 +18,7 @@ export class SupplyDaemon extends Daemon {
   destinations?: StoreStructure[];
 
   constructor(initializer: Actor) {
-    super(initializer.hub, initializer, 'supply');
+    super(initializer.hub, initializer, 'supply', RunActivity.Always);
   }
 
   private spawnSuppliers() {
@@ -38,24 +39,30 @@ export class SupplyDaemon extends Daemon {
       bodyParts: bodyParts
     };
 
-    const count = this.hub.extentions.length > 20 ? 2 : 1;
+    const count = this.hub.extentions.length > 20 && (this.hub.storage?.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0 > 5000) ? 2 : 1;
 
-
-    if (this.hub.room.energyAvailable < this.hub.room.energyCapacityAvailable) {
-      this.wishList(count, setup, options);
-    }
+    this.wishList(count, setup, options);
 
   }
 
   private populateStructure() {
 
     if (!this.sources) {
-      const containers = _.filter(this.hub.containers, container => container.pos.roomName == this.pos.roomName && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0);
+      //const containers = _.filter(this.hub.containers, container => container.pos.roomName == this.pos.roomName && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0);
+      //this.sources = this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0 ? [this.hub.storage] : containers;
 
-      this.sources = this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 0 ? [this.hub.storage] : containers;
+      if (this.hub.storage) {
+        this.sources = [this.hub.storage];
+      } else {
+        this.sources = _.filter(this.hub.containers, container => container.pos.roomName == this.pos.roomName && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0);
+      }
+
+
     }
 
     if (!this.destinations || this.destinations.length == 0) {
+      // Reload destination list if empty or not init
+
       this.destinations = _.filter(this.hub.structures, (structure: { structureType: string, store: StoreDefinition }) => {
         return (structure.structureType == STRUCTURE_EXTENSION ||
           structure.structureType == STRUCTURE_SPAWN ||
@@ -70,14 +77,21 @@ export class SupplyDaemon extends Daemon {
     super.refresh();
 
     this.sources = undefined;
-    this.destinations = undefined;
+
+    log.debug(`Supply init; destinations : ${this.destinations?.length ?? -1}`)
+
+    // this.destinations = undefined;
   }
 
   init(): void {
 
-    this.spawnSuppliers();
-
     const storage = this.hub.storage;
+
+    if (!storage) {
+      return;
+    }
+
+    this.spawnSuppliers();
 
     if (storage && storage.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubStorageMaxEnergy && !this.hub.logisticsNetwork.haveRequest(storage, RESOURCE_ENERGY)) {
       this.hub.logisticsNetwork.requestInput(storage, RESOURCE_ENERGY, Settings.hubStorageMaxEnergy);

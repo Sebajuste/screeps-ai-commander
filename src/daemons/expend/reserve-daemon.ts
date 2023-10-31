@@ -3,12 +3,12 @@ import { AgentRequestOptions, AgentSetup } from "agent/Agent";
 import { AGENT_PRIORITIES } from "agent/agent-setup";
 import { ReserverRole } from "agent/roles/roles";
 import { Daemon } from "daemons";
-import { Hub } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
 
 export class ReserveDaemon extends Daemon {
 
   constructor(hub: Hub, initializer: Actor) {
-    super(hub, initializer, 'reserve');
+    super(hub, initializer, 'reserve', RunActivity.Outpost);
   }
 
   private spawnHandler() {

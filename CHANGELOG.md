@@ -14,3 +14,7 @@
 > **main** Add Defend Outpost
 > **main** Improve CPU buck management
 > **main** Add link handler
+
+## ======= Date 2023-10-30 =======
+> **main** Add Miner daemon
+> **main** CPU optimisation

@@ -182,8 +182,9 @@ export class HarvestRole {
 
     if (container && container.store.getFreeCapacity(RESOURCE_ENERGY) == 0) {
       // Container full
-      if (!link || link.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+      if (!link || link.store.getFreeCapacity(RESOURCE_ENERGY) == 0) {
         // No link, or link is full
+        log.debug(`${agent.print} Container full and no link or link full`)
         return [];
       }
     }
@@ -244,9 +245,7 @@ export class HarvestRole {
     if (link && link.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
       // Harvest to Link
 
-      // if (agent.store.getUsedCapacity(RESOURCE_ENERGY) == 0) {
       // Need to take Energy
-
       if (container && container.store.getUsedCapacity(RESOURCE_ENERGY) > 300) {
         // From Container
         pipeline.push(Tasks.withdraw(container, RESOURCE_ENERGY));
@@ -254,7 +253,6 @@ export class HarvestRole {
         // From Harvest
         pipeline.push(Tasks.harvest(source, link));
       }
-      // }
 
       pipeline.push(Tasks.transfer(link, RESOURCE_ENERGY));
 
@@ -290,7 +288,7 @@ export class HarvestRole {
 
 export class HaulerRole {
 
-  static newTasks(hub: Hub, agent: Agent, request?: LogisticsRequest): Task[] {
+  static pipeline(hub: Hub, agent: Agent, request?: LogisticsRequest): Task[] {
 
     if (request) {
 
@@ -309,6 +307,7 @@ export class HaulerRole {
         if (isStoreStructure(request.target)) {
           return [Tasks.transfer(request.target, request.resourceType)];
         } else if (isTargetPosition(request.target)) {
+          log.debug(`> Drop target : `, JSON.stringify(request.target));
           return [Tasks.drop(request.target.pos, request.resourceType)];
         }
 
@@ -337,6 +336,26 @@ export class HaulerRole {
     */
 
     return [];
+  }
+
+}
+
+export class MinerRole {
+
+  static pipeline(hub: Hub, agent: Agent, mineral: Mineral, extractor?: StructureExtractor, container?: StructureContainer | null) {
+
+    const pipeline: TaskPipeline = [];
+
+    if (container && (agent.pos.roomName != container.pos.roomName || agent.pos.x == container.pos.x || agent.pos.y == container.pos.y)) {
+      // Agent must go on the container
+      pipeline.push(Tasks.wait(container.pos, 0));
+    }
+
+    if (mineral.mineralAmount > 0 && extractor && extractor.cooldown == 0) {
+      pipeline.push(Tasks.harvest(mineral, container, true));
+    }
+
+    return pipeline;
   }
 
 }
@@ -498,6 +517,8 @@ export class SupplierRole {
 
     const fillRequired = _.filter(destinations, dest => dest.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
 
+    log.debug(`Fill Required : ${fillRequired.length}, sources: ${sources.length}`)
+
     if (fillRequired.length == 0) {
       // No action required
       return [];
@@ -542,13 +563,15 @@ export class SupplierRole {
 
 export class UpgradeRole {
 
-  static pipeline(hub: Hub, agent: Agent, container?: StructureContainer | StructureLink | null): TaskPipeline {
+  static pipeline(hub: Hub, agent: Agent, container?: StructureContainer, link?: StructureLink | null): TaskPipeline {
 
     const tasks: TaskPipeline = [];
 
+    const storeStructure = link && link.store.getUsedCapacity(RESOURCE_ENERGY) > 0 ? link : container;
+
     const haveEnergy = agent.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
     const nearDrop = findClosestByLimitedRange(hub.controller.pos, hub.dropsByRooms[agent.pos.roomName], 5);
-    const validContainer = container && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
+    const validContainer = storeStructure && storeStructure.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
 
     if (!haveEnergy && !nearDrop && !validContainer) {
       // Nothing to do, be close to the controller
@@ -565,9 +588,12 @@ export class UpgradeRole {
       tasks.push(Tasks.pickup(nearDrop));
     }
 
-    if (validContainer) {
+    if (link && container) {
+      // Dismantle container to avoid use energy to repair it
+      tasks.push(Tasks.dismantle(container));
+    } else if (validContainer) {
       // Take energy from tructure
-      tasks.push(Tasks.withdraw(container, RESOURCE_ENERGY));
+      tasks.push(Tasks.withdraw(storeStructure, RESOURCE_ENERGY));
     }
 
     return tasks;

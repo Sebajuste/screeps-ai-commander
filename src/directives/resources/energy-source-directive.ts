@@ -6,6 +6,7 @@ import _ from "lodash";
 import { Mem, MemCacheObject } from "memory/Memory";
 import { deserializePos, serializePos } from "task/task-initializer";
 import { log } from "utils/log";
+import { linksMax } from "utils/rcl-tool";
 import { findClosestByLimitedRange } from "utils/util-pos";
 
 
@@ -14,9 +15,9 @@ interface EnergySourceMemory {
   containerPos?: string;
   linkPos?: string;
 
-  container?: Id<_HasId>;
-  link?: Id<_HasId>;
-  constructionSite?: Id<_HasId>;
+  // container?: Id<_HasId>;
+  // link?: Id<_HasId>;
+  // constructionSite?: Id<_HasId>;
 }
 
 
@@ -30,11 +31,13 @@ export class EnergySourceDirective extends Directive {
 
   daemons: {
     harvest: HarvestDaemon,
-    hauler: HaulerDaemon
+    // hauler: HaulerDaemon
   };
 
   containerPos: RoomPosition;
   linkPos: RoomPosition;
+
+  isOutpost: boolean;
 
   private _containerCache: MemCacheObject<StructureContainer>;
   private _linkCache: MemCacheObject<StructureLink>;
@@ -59,14 +62,18 @@ export class EnergySourceDirective extends Directive {
       this.memory.containerPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
     }
 
-    if (!this.memory.linkPos && path) {
+    this.isOutpost = this.pos.roomName != this.hub.pos.roomName;
+
+    if (!this.memory.linkPos && path && !this.isOutpost) {
       const stepIndex = Math.min(1, path.length);
       const step = path[stepIndex];
       this.memory.linkPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
     }
 
     this.containerPos = deserializePos(this.memory.containerPos!);
-    this.linkPos = deserializePos(this.memory.linkPos!);
+    if (!this.isOutpost) {
+      this.linkPos = deserializePos(this.memory.linkPos!);
+    }
   }
 
   get container(): StructureContainer | null {
@@ -86,9 +93,11 @@ export class EnergySourceDirective extends Directive {
       if (!this.daemons.harvest) {
         this.daemons.harvest = new HarvestDaemon(this.hub, this, source, priority);
       }
+      /*
       if (!this.daemons.hauler && !this._linkCache.isValid()) {
         this.daemons.hauler = new HaulerDaemon(this.hub, this, priority);
       }
+      */
     } else {
       log.error(`${this.print} No source available`)
     }
@@ -114,7 +123,7 @@ export class EnergySourceDirective extends Directive {
       }
     }
 
-    if (this.pos.roomName == this.hub.room.name && !this._linkCache.value && !this._constructionSiteCache.value && this.hub.links.length >= 1) {
+    if (!this.isOutpost && !this._linkCache.value && !this._constructionSiteCache.value && this.hub.links.length >= 1 && this.hub.links.length < linksMax(this.hub.level)) {
       // Create Link if required
       const r = this.linkPos.createConstructionSite(STRUCTURE_LINK);
       if (r != OK) {
@@ -131,7 +140,9 @@ export class EnergySourceDirective extends Directive {
     this.memory = Mem.wrap(this.flag.memory, 'energy_source', {});
 
     this._containerCache.refresh(this.memory);
-    this._linkCache.refresh(this.memory);
+    if (!this.isOutpost) {
+      this._linkCache.refresh(this.memory);
+    }
     this._constructionSiteCache.refresh(this.memory);
 
 
@@ -144,7 +155,7 @@ export class EnergySourceDirective extends Directive {
       this._containerCache.value = findClosestByLimitedRange(this.pos, this.hub.containersByRooms[this.room.name] ?? [], 5);
     }
 
-    if (!this._linkCache.isValid()) {
+    if (!this.isOutpost && !this._linkCache.isValid()) {
       this._linkCache.value = findClosestByLimitedRange(this.pos, this.hub.links, 5);
     }
 
@@ -162,11 +173,21 @@ export class EnergySourceDirective extends Directive {
       return;
     }
 
+    if (this.container) {
+      if (this.container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+        // Output the energy into container
+        this.hub.logisticsNetwork.requestOutput(this.container, RESOURCE_ENERGY);
+      }
+      return;
+    }
+
+    /*
     if (this._linkCache.isValid() && this.daemons.hauler) {
       this.daemons.hauler.maxQuantity = 0;
     } else if (this.daemons.hauler) {
       this.daemons.hauler.maxQuantity = 1;
     }
+    */
 
     this.buildHandler();
   }

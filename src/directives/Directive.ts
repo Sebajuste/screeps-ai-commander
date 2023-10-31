@@ -1,7 +1,7 @@
 import _ from "lodash";
 
 import { Commander } from "Commander";
-import { Hub } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
 import { Actor } from "Actor";
 import { Coord } from "utils/coord";
 import { log } from "utils/log";
@@ -17,10 +17,13 @@ export abstract class Directive implements Actor {
     room: Room;
     pos: RoomPosition; 							// Flag position
     memory: FlagMemory;
+    performanceReport: { [stat: string]: number };
 
     commander: Commander;
     flag: Flag;
     daemons: { [name: string]: Daemon };	    // Daemons
+
+
 
     constructor(commander: Commander, flag: Flag, hub: Hub, includePos = false) {
         if (!flag) log.error("No flag to create Directive")
@@ -34,6 +37,7 @@ export abstract class Directive implements Actor {
         this.flag = flag;
         this.memory = flag.memory;
         this.daemons = {};
+        this.performanceReport = {};
 
         if (!this.room) {
             throw new Error(`Invalid flag room for $${flag.name}`);

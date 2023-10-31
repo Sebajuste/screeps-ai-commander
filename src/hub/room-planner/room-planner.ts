@@ -57,10 +57,13 @@ export abstract class RoomPlanner {
 
   roadPlanner: RoadPlanner;
 
+  dismantleList: Structure[];
+
   constructor(hub: Hub, memoryDefault: PlannerMemory) {
     this.hub = hub;
     this.memory = Mem.wrap(this.hub.memory, 'roomPlanner', memoryDefault);
     this.roadPlanner = new RoadPlanner(this);
+    this.dismantleList = [];
   }
 
   get active(): boolean {
@@ -93,9 +96,19 @@ export abstract class RoomPlanner {
     return;
   }
 
+  addDismantle(structure: Structure) {
+    this.dismantleList.push(structure);
+  }
+
+  isDismantle(structure: Structure) {
+    return this.dismantleList.find(it => it.id == structure.id) != undefined;
+  }
+
   abstract init(): void;
 
-  abstract refresh(): void;
+  refresh(): void {
+    this.dismantleList = [];
+  }
 
   abstract run(): void;
 

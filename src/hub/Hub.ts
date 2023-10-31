@@ -1,4 +1,3 @@
-import { CPU } from "cpu/CPU";
 import { Mem } from "memory/Memory";
 import { log } from "utils/log";
 import { Dispatcher } from "./dispatcher";
@@ -9,7 +8,7 @@ import { getMultiRoomRange } from "utils/util-pos";
 import { LogisticsNetwork } from "logistics/logistics-network";
 import _, { Dictionary } from "lodash";
 import { UpgradeArea } from "area/hub/upgrade-area";
-import { PROCESS_PRIORITY_HIGHT, PROCESS_PRIORITY_LOW, PROCESS_PRIORITY_NORMAL } from "cpu/process";
+import { PROCESS_PRIORITY_HIGHT, PROCESS_PRIORITY_LOW, PROCESS_PRIORITY_NORMAL, ProcessStack, pushProcess } from "cpu/process";
 import { Settings } from "settings";
 import { setHarvestFlag } from "room/room-analyse";
 import { RoomPlanner } from "./room-planner/room-planner";
@@ -18,6 +17,7 @@ import { Coord } from "utils/coord";
 import { Visualizer } from "ui/visualizer";
 import { HubCenterArea } from "area/hub/hubcenter-area";
 import { LinkNetwork } from "logistics/link-network";
+import { MineralArea } from "area/hub/mineral-area";
 
 
 interface HubMemory {
@@ -37,6 +37,32 @@ const DEFAULT_HUB_MEMORY = {
 } as HubMemory;
 
 
+export enum RunActivity {
+  LocalHarvest = 0x01,
+  Outpost = 0x02,
+  Upgrade = 0x04,
+  Build = 0x08,
+  Repair = 0x10,
+  Miner = 0x20,
+  Industry = 0x40,
+  Explore = 0x80,
+  Always = 0x100
+}
+
+export enum RunLevel {
+  // Use all outpost resources
+  BOOST = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Outpost | RunActivity.Upgrade | RunActivity.Build | RunActivity.Miner | RunActivity.Industry | RunActivity.Explore,
+  // Use minimum room 
+  NORMAL = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Upgrade | RunActivity.Build | RunActivity.Miner | RunActivity.Industry | RunActivity.Explore,
+  // Use minimal activity
+  LIMITED = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Repair | RunActivity.Industry,
+  // Minimal activity for energy
+  MINIMAL = RunActivity.Always | RunActivity.LocalHarvest,
+  // Disable the hub  
+  STANDBY = RunActivity.Always | RunActivity.Upgrade
+}
+
+
 export class Hub {
 
   id: number;
@@ -53,8 +79,11 @@ export class Hub {
   pos: RoomPosition;
 
   dispatcher: Dispatcher;
+  processStack: ProcessStack;
   logisticsNetwork: LogisticsNetwork;
   linkNetwork: LinkNetwork;
+
+  runLevel: RunLevel;
 
   // Physical Hub structures and roomObjects
   controller: StructureController;					          // These are all duplicated from room properties
@@ -90,25 +119,33 @@ export class Hub {
   areas: {
     agentFactory?: AgentFactoryArea,
     upgrade?: UpgradeArea,
-    hubCenter?: HubCenterArea
+    hubCenter?: HubCenterArea,
+    minerals: MineralArea[]
   };
 
   areaList: Area[];
 
-  private _agents: Agent[];										                // Creeps bound to the Hub, set by Commander
+  private _agents: Agent[];										      // Creeps bound to the Hub, set by Commander
   private _agentsByRole?: Dictionary<Agent[]>;		  // Creeps hashed by their role name, set by Commander
   private _agentsByDaemon?: Dictionary<Agent[]>;	  // Creeps hashed by their overseer, set by Commander
+  private _agentsByRoom?: Dictionary<Agent[]>;	    // Creeps hashed by their room, set by Commander
 
 
   roomPlanner: RoomPlanner;
+
+  creepCPU: number;
 
   constructor(id: number, name: string, outposts: string[]) {
     this.id = id;
     this.name = name;
     this.ref = name;
+    this.memory = Mem.wrap((Memory as any).hubs, name, DEFAULT_HUB_MEMORY, true);
     this.dispatcher = new Dispatcher(this);
+    this.processStack = [];
     this.logisticsNetwork = new LogisticsNetwork(this);
     this.linkNetwork = new LinkNetwork(this);
+
+    this.runLevel = RunLevel.BOOST;
 
     this.structuresByRooms = {};
     this.structures = [];
@@ -127,15 +164,18 @@ export class Hub {
 
     this.hostilesCreeps = [];
 
-    this.areas = {};
+    this.areas = {
+      minerals: []
+    };
     this.areaList = [];
 
     this._agents = [];
 
-    const gameMemory: any = Memory;
-    this.memory = Mem.wrap(gameMemory.hubs, name, DEFAULT_HUB_MEMORY, true);
+
+
 
     this.roomPlanner = new BunkerRoomPlanner(this);
+    this.creepCPU = 0;
 
     this.build(outposts);
   }
@@ -157,6 +197,7 @@ export class Hub {
     // Invalid cache
     this._agentsByRole = undefined;
     this._agentsByDaemon = undefined;
+    this._agentsByRoom = undefined;
   }
 
   get agentsByRole(): Dictionary<Agent[]> {
@@ -171,6 +212,13 @@ export class Hub {
       this._agentsByDaemon = _.groupBy(this.agents, agent => agent.memory.daemon);
     }
     return this._agentsByDaemon;
+  }
+
+  get agentByRoom(): Dictionary<Agent[]> {
+    if (!this._agentsByRoom) {
+      this._agentsByRoom = _.groupBy(this.agents, agent => agent.room.name);
+    }
+    return this._agentsByRoom;
   }
 
   private registerRoomObject() {
@@ -205,10 +253,12 @@ export class Hub {
       .map(room => room.find(FIND_SOURCES))//
       .flatten()//
       .orderBy(source => getMultiRoomRange(source.pos, this.pos), ['asc'])//
-      .slice(0, Settings.hubMaxSource(this.level))//
+      // .slice(0, Settings.hubMaxSource(this.level))//
       .value();
 
     this.sources.forEach(source => setHarvestFlag(this, source));
+
+    this.minerals = this.room.find(FIND_MINERALS);
 
     this.dropsByRooms = {};
     this.rooms.forEach(room => {
@@ -236,6 +286,10 @@ export class Hub {
       this.areas.hubCenter = new HubCenterArea(this, this.storage);
     }
 
+    if (this.level >= 6) {
+      this.areas.minerals = this.minerals.map(mineral => new MineralArea(this, mineral));
+    }
+
     this.areas.upgrade = new UpgradeArea(this);
 
     this.areaList = _.flatten(_.values(this.areas) as (Area | Area[])[]);
@@ -245,11 +299,62 @@ export class Hub {
 
   }
 
+  getAreaReport(): { data: string[][], styles: TextStyle[] } {
+
+    // const roledata: string[][] = [];
+    const styles: TextStyle[] = [];
+
+    const roledata: string[][] = _.chain(this.areaList)//
+      .orderBy(area => Math.max(area.performanceReport['init'] ?? 0, area.performanceReport['run'] ?? 0), ['desc'])//
+      .map(area => [`${area.name}@${area.pos.roomName}`, `${area.performanceReport['init'] ?? '---'} ${area.performanceReport['run'] ?? '---'}`])//
+      .value();
+
+    const total = _.reduce(this.areaList, (acc, area) => [acc[0] + (area.performanceReport['init'] ?? 0), acc[1] + (area.performanceReport['run'] ?? 0)], [0, 0]);
+
+    roledata.push(['TOTAL', `${Math.round(total[0] * 100 + Number.EPSILON) / 100} + ${Math.round(total[1] * 100 + Number.EPSILON) / 100} = ${Math.round((total[0] + total[1]) * 100 + Number.EPSILON) / 100}`]);
+
+    /*
+  for (const daemon of this.daemons) {
+    roledata.push([`${daemon.name}@${daemon.pos.roomName}`, `  ${daemon.agents.length} - ${daemon.performanceReport['init'] ?? '---'} ${daemon.performanceReport['run'] ?? '---'}`]);
+    styles.push({});
+  }
+  */
+
+    return { data: roledata, styles: styles };
+  }
+
+  private drawCPUReport(coord: Coord): Coord {
+    let { x, y } = coord;
+    const roledata = [
+      ['CPU creeps', `${Math.floor(this.creepCPU * 100 + Number.EPSILON) / 100}`],
+      ['CPU total', `${Math.floor(Game.cpu.getUsed() * 100 + Number.EPSILON) / 100}`],
+    ];
+    const tablePos = new RoomPosition(x, y, this.room.name);
+    y = Visualizer.infoBox(`${this.name} CPU`, roledata, tablePos, 12);
+    return { x, y };
+  }
+
   private drawAgentReport(coord: Coord): Coord {
     let { x, y } = coord;
     const roledata = this.dispatcher.getAgentReport();
     const tablePos = new RoomPosition(x, y, this.room.name);
-    y = Visualizer.info_box(`${this.name} Agents [${this.agents.length}]`, roledata, tablePos, 10);
+    y = Visualizer.infoBox(`${this.name} Agents [${this.agents.length}]`, roledata, tablePos, 12);
+    return { x, y };
+  }
+
+  private drawAreaReport(coord: Coord): Coord {
+    let { x, y } = coord;
+    const report = this.getAreaReport();
+    const tablePos = new RoomPosition(x, y, this.room.name);
+    y = Visualizer.infoBox(`${this.name} Areas [${this.areaList.length}]`, report.data, tablePos, 12);
+    return { x, y };
+  }
+
+  private drawDirectiveReport(coord: Coord): Coord {
+    let { x, y } = coord;
+    const report = this.dispatcher.getDirectiveReport();
+    const tablePos = new RoomPosition(x, y, this.room.name);
+    y = Visualizer.infoBox(`${this.name} Directives [${this.dispatcher.directives.length}]`, report.data, tablePos, 12);
     return { x, y };
   }
 
@@ -257,7 +362,7 @@ export class Hub {
     let { x, y } = coord;
     const report = this.dispatcher.getDaemonReport();
     const tablePos = new RoomPosition(x, y, this.room.name);
-    y = Visualizer.info_box(`${this.name} Daemons [${this.dispatcher.daemons.length}]`, report.data, tablePos, 10);
+    y = Visualizer.infoBox(`${this.name} Daemons [${this.dispatcher.daemons.length}]`, report.data, tablePos, 12);
     return { x, y };
   }
 
@@ -275,7 +380,9 @@ export class Hub {
     this.logisticsNetwork.refresh();
     this.linkNetwork.refresh();
 
-    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset));
+    this.areaList.forEach(area => pushProcess(this.processStack, () => {
+      area.refresh();
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset));
     this.dispatcher.refresh();
 
     this.roomPlanner.refresh();
@@ -283,10 +390,33 @@ export class Hub {
 
   init() {
 
-    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.init(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 10));
+    this.creepCPU = 0;
+
+    _.forIn(RunActivity, (value, key) => {
+      if (isNaN(Number(key))) {
+
+        if ((this.runLevel & value) == 0) {
+          _.forEach(this.dispatcher.daemonsByActivity[value], daemon => {
+            this.dispatcher.suspendDaemon(daemon, 100);
+          });
+        }
+
+      }
+    });
+
+    /**
+     * Run sub process
+     */
+
+    this.areaList.forEach(area => pushProcess(this.processStack, () => {
+      const start = Game.cpu.getUsed();
+      area.init();
+      const cpuCost = Game.cpu.getUsed() - start;
+      area.performanceReport['init'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 10));
     this.dispatcher.init();
 
-    CPU.cpu().pushProcess(() => this.roomPlanner.init());
+    pushProcess(this.processStack, () => this.roomPlanner.init());
 
   }
 
@@ -294,15 +424,27 @@ export class Hub {
 
     const start = Game.cpu.getUsed();
 
-    this.areaList.forEach(area => CPU.cpu().pushProcess(() => area.run(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 20));
+    this.areaList.forEach(area => pushProcess(this.processStack, () => {
+      const start = Game.cpu.getUsed();
+      const cpuCost = Game.cpu.getUsed() - start;
+      area.performanceReport['run'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
+      area.run();
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 20));
+
     this.dispatcher.run();
 
-    CPU.cpu().pushProcess(() => this.linkNetwork.run(), PROCESS_PRIORITY_HIGHT + 30);
+    pushProcess(this.processStack, () => this.linkNetwork.run(), PROCESS_PRIORITY_HIGHT + 30);
 
+    // Run agent
+    _.orderBy(this.agents, agent => agent.lastRunTick, ['asc']).forEach(agent => pushProcess(this.processStack, () => {
+      const start = Game.cpu.getUsed();
+      agent.run(this);
+      const timeElasped = Game.cpu.getUsed() - start;
+      this.creepCPU += timeElasped;
+    }, PROCESS_PRIORITY_NORMAL));
 
-    _.orderBy(this.agents, agent => agent.lastRunTick, ['asc']).forEach(agent => CPU.cpu().pushProcess(() => agent.run(), PROCESS_PRIORITY_NORMAL));
-
-    CPU.cpu().pushProcess(() => this.roomPlanner.run(), PROCESS_PRIORITY_LOW);
+    // Run room planner
+    pushProcess(this.processStack, () => this.roomPlanner.run(), PROCESS_PRIORITY_LOW);
 
     log.info(`HUB::run() CPU used : ${Game.cpu.getUsed() - start}`)
 
@@ -317,7 +459,19 @@ export class Hub {
     let y = 8;
     let coord: Coord;
 
+    coord = this.drawCPUReport({ x, y });
+    x = coord.x;
+    y = coord.y;
+
     coord = this.drawAgentReport({ x, y });
+    x = coord.x;
+    y = coord.y;
+
+    coord = this.drawDirectiveReport({ x, y });
+    x = coord.x;
+    y = coord.y;
+
+    coord = this.drawAreaReport({ x, y });
     x = coord.x;
     y = coord.y;
 

@@ -282,7 +282,7 @@ export class LogisticsNetwork {
     agents.forEach((transporter: Agent) => {
       const request = this.match[transporter.id];
       if (request) {
-        transporter.taskPipelineHandler.pipeline = HaulerRole.newTasks(this.hub, transporter, request);
+        transporter.taskPipelineHandler.pipeline = HaulerRole.pipeline(this.hub, transporter, request);
       }
     });
 
@@ -361,13 +361,8 @@ export class LogisticsNetwork {
 
     const req = _.find(this.requests, req => (req.target.id == target.id || req.target.pos.isEqualTo(target.pos)) && req.resourceType == resourceType);
 
-    log.debug(`LogisticNetwork removeRequest req: `, req);
-
-    const startCount = this.requests.length;
-
     if (req) {
       _.remove(this.requests, it => it == req);
-      log.debug('> deleted : ', startCount - this.requests.length);
     }
   }
 

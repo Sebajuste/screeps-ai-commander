@@ -1,4 +1,4 @@
-import { Hub } from "hub/Hub";
+import { Hub, RunLevel } from "hub/Hub";
 import { CPU } from "cpu/CPU";
 import { Directive } from "directives/Directive";
 import { OutpostDirective } from "directives/hub/outpost-directive";
@@ -9,10 +9,14 @@ import _, { Dictionary } from "lodash";
 import { Agent } from "agent/Agent";
 import { createDirective } from "directives/directive-builder";
 import { createHubFlags } from "room/room-analyse";
-import { PROCESS_PRIORITY_HIGHT, PROCESS_PRIORITY_LOW } from "cpu/process";
+import { PROCESS_PRIORITY_HIGHT, PROCESS_PRIORITY_LOW, pushProcess } from "cpu/process";
+import { Scheduler } from "cpu/scheduler";
 
 
 export class Commander {
+
+
+  scheduler: Scheduler;
 
   hubs: { [roomName: string]: Hub };				    // Global hash of all hub objects
   hubMap: { [roomName: string]: string };				// Global map of hub associations for possibly-null rooms
@@ -22,6 +26,7 @@ export class Commander {
   agents: Dictionary<Agent>;
 
   constructor() {
+    this.scheduler = new Scheduler();
     this.hubs = {};
     this.hubMap = {};
 
@@ -146,7 +151,38 @@ export class Commander {
     }
   }
 
+  analyseRunLevel(hub: Hub) {
 
+    if (Game.cpu.bucket < 5000) {
+      return hub.runLevel = RunLevel.MINIMAL;
+    }
+
+    if (hub.level < 4) {
+      return hub.runLevel = RunLevel.BOOST;
+    }
+
+    if (hub.storage) {
+      const energyAmount = hub.storage.store.getUsedCapacity(RESOURCE_ENERGY);
+      if (energyAmount > 100000) {
+        hub.runLevel = RunLevel.STANDBY;
+      } else if (energyAmount > 50000) {
+        hub.runLevel = RunLevel.LIMITED;
+      } else if (energyAmount > 10000) {
+        hub.runLevel = RunLevel.NORMAL;
+      } else if (energyAmount < 2000) {
+        hub.runLevel = RunLevel.MINIMAL;
+      } else {
+        hub.runLevel = RunLevel.NORMAL;
+      }
+
+
+
+    } else {
+      hub.runLevel = RunLevel.NORMAL;
+    }
+
+
+  }
 
   build() {
     this.registerHubs();
@@ -160,25 +196,41 @@ export class Commander {
     // this.registerNewAgents();
     this.registerAgents();
 
-    _.forEach(this.hubs, hub => CPU.cpu().pushProcess(() => hub.refresh(), PROCESS_PRIORITY_HIGHT));
+    _.forEach(this.hubs, hub => {
+      hub.processStack = [];
+      pushProcess(hub.processStack, () => {
+        hub.refresh();
+        this.analyseRunLevel(hub);
+      }, PROCESS_PRIORITY_HIGHT)
+    });
   }
 
   init() {
 
-    _.forEach(this.hubs, hub => CPU.cpu().pushProcess(() => hub.init(), PROCESS_PRIORITY_HIGHT + 10));
+    _.forEach(this.hubs, hub => pushProcess(hub.processStack, () => hub.init(), PROCESS_PRIORITY_HIGHT + 10));
 
   }
 
   run() {
 
-    _.forEach(this.hubs, hub => CPU.cpu().pushProcess(() => hub.run(), PROCESS_PRIORITY_HIGHT + 20));
+    _.forEach(this.hubs, hub => pushProcess(hub.processStack, () => hub.run(), PROCESS_PRIORITY_HIGHT + 20));
 
   }
 
   visuals() {
 
-    _.forEach(this.hubs, hub => CPU.cpu().pushProcess(() => hub.visuals(), PROCESS_PRIORITY_LOW + 100));
+    // _.forEach(this.hubs, hub => pushProcess(hub.processStack, () => hub.visuals(), PROCESS_PRIORITY_LOW + 100));
+    _.forEach(this.hubs, hub => hub.visuals());
 
+  }
+
+  scheduleProcess(): Scheduler {
+
+    const group = _.map(this.hubs, hub => hub.processStack);
+
+    this.scheduler.init(group);
+
+    return this.scheduler;
   }
 
 }

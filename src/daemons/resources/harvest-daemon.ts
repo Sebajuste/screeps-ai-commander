@@ -1,24 +1,22 @@
 import { Actor } from "Actor";
 import { AgentRequestOptions, AgentSetup } from "agent/Agent";
-import { countBodyPart, selectBodyParts } from "agent/agent-builder";
+import { countBodyPart, countValidBodyPart, selectBodyParts } from "agent/agent-builder";
 import { AGENT_PRIORITIES, HARVEST_BASIC_STRUCTURE_TEMPLATE, HARVEST_STRUCTURE_TEMPLATE } from "agent/agent-setup";
 import { HarvestRole } from "agent/roles/roles";
 import { Daemon } from "daemons/daemon";
 import { EnergySourceDirective } from "directives/resources/energy-source-directive";
-import { Hub } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
 import _ from "lodash";
 import { Mem, MemCacheObject } from "memory/Memory";
 import { log } from "utils/log";
 import { findClosestByLimitedRange } from "utils/util-pos";
-import { HaulerStat } from "./hauler-daemon";
+import { HaulerStat } from "../civilian/hauler-daemon";
 
 export class HarvestDaemon extends Daemon {
 
 
   initializer: EnergySourceDirective;
   source: Source;
-
-  containerFull: boolean;
 
   ennemyDetected: boolean;
 
@@ -27,17 +25,24 @@ export class HarvestDaemon extends Daemon {
   _dropCache: MemCacheObject<Resource>;
 
   constructor(hub: Hub, initializer: EnergySourceDirective, source: Source, priority: number) {
-    super(hub, initializer, 'harvest', priority);
+    super(hub, initializer, 'harvest', initializer.pos.roomName == hub.pos.roomName ? RunActivity.LocalHarvest : RunActivity.Outpost, priority);
     this.initializer = initializer;
     this.source = source;
-    this.containerFull = false;
     this.ennemyDetected = false;
 
 
-    this.memory = Mem.wrap(initializer.memory, 'haulerStat', { eta: 0 });
-    this.memory.eta = (initializer.flag.memory as any).hubDistance / 2;
+    this.memory = Mem.wrap(initializer.memory, 'haulerStat', { eta: 0, inputRate: 0 } as HaulerStat);
+    this.memory.eta = (initializer.flag.memory as any).hubDistance;
 
-    this._dropCache = new MemCacheObject<Resource>(this.memory, 'drop');
+    this._dropCache = new MemCacheObject<Resource>(initializer.memory, 'drop');
+  }
+
+  get inputRate(): number {
+    return this.memory.inputRate;
+  }
+
+  get eta(): number {
+    return this.memory.eta;
   }
 
   private spawnHandler() {
@@ -46,10 +51,8 @@ export class HarvestDaemon extends Daemon {
       priority: AGENT_PRIORITIES.harvester
     };
 
-    const bodyParts = selectBodyParts(this.initializer.link ? HARVEST_STRUCTURE_TEMPLATE : HARVEST_BASIC_STRUCTURE_TEMPLATE, this.hub.room.energyAvailable);
-
-    const workPerHarvester = countBodyPart(bodyParts, WORK);
-    this.memory.inputRate = workPerHarvester * 2;
+    const isOutpostContainer = this.initializer.container && this.pos.roomName != this.hub.pos.roomName;
+    const bodyParts = selectBodyParts(this.initializer.link || isOutpostContainer ? HARVEST_STRUCTURE_TEMPLATE : HARVEST_BASIC_STRUCTURE_TEMPLATE, this.hub.room.energyAvailable);
 
     const setup: AgentSetup = {
       role: 'energy_collector',
@@ -62,8 +65,10 @@ export class HarvestDaemon extends Daemon {
 
   private haveEnnemy() {
 
-    if (Game.time % 10 == 0) {
-      this.ennemyDetected = findClosestByLimitedRange(this.pos, this.hub.hostilesCreepsByRooms[this.room.name] ?? [], 5) != null;
+    if (this.pos.roomName == 'sim') {
+      this.ennemyDetected = findClosestByLimitedRange(this.pos, this.hub.hostilesCreepsByRooms[this.room.name], 5) != null;
+    } else {
+      this.ennemyDetected = (this.hub.hostilesCreepsByRooms[this.room.name] ?? []).length > 0;
     }
     return this.ennemyDetected;
 
@@ -75,7 +80,7 @@ export class HarvestDaemon extends Daemon {
 
   refresh(): void {
     super.refresh();
-    this._dropCache.refresh(this.memory);
+    this._dropCache.refresh(this.initializer.memory);
   }
 
   init(): void {
@@ -84,14 +89,19 @@ export class HarvestDaemon extends Daemon {
 
     if (!roomReachable) {
       log.warning(`${this.print} Room unreachable`);
+      this.memory.inputRate = 0;
       return;
     }
 
+    this.memory.inputRate = _.sum(this.agents.map(agent => countValidBodyPart(agent.creep, WORK))) * 2;
+    // const workPerHarvester = countBodyPart(bodyParts, WORK);
+    //this.memory.inputRate = workPerHarvester * 2;
+
     const haveEnnemy = this.haveEnnemy();
 
-    this.containerFull = (this.initializer.container && this.initializer.container.store.getFreeCapacity(RESOURCE_ENERGY) == 0) ?? false;
+    const containerFull = (this.initializer.container && this.initializer.container.store.getFreeCapacity(RESOURCE_ENERGY) == 0) ?? false;
 
-    if (!haveEnnemy && !this.containerFull) {
+    if (!haveEnnemy && (!containerFull || this.initializer.link)) {
       this.spawnHandler();
     } else {
       this.memory.inputRate = 0;
@@ -105,6 +115,7 @@ export class HarvestDaemon extends Daemon {
       return;
     }
 
+    /*
     if (this.initializer.container) {
       if (this.initializer.container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
         // Output the energy into container
@@ -112,16 +123,21 @@ export class HarvestDaemon extends Daemon {
       }
       return;
     }
-
-    if (!this._dropCache.isValid()) {
-      this._dropCache.value = findClosestByLimitedRange(this.pos, this.hub.dropsByRooms[this.room.name], 1);
-    }
+    */
 
     // Output the energy droped
     if (this.drop) {
       this.hub.logisticsNetwork.requestOutput(this.drop, this.drop.resourceType);
     }
 
+    if (this.agents.length == 0) {
+      // NO cache update id no agent is present
+      return;
+    }
+
+    if (!this._dropCache.isValid()) {
+      this._dropCache.value = findClosestByLimitedRange(this.pos, this.hub.dropsByRooms[this.room.name], 1);
+    }
 
     /*
     const haveStoreStructure = this.initializer.container || this.initializer.link;
@@ -152,13 +168,20 @@ export class HarvestDaemon extends Daemon {
 
   run(): void {
 
+    /*
     const container = this.initializer.container;
     if (container) {
       // Clear pipeline if harvester is not over container
       _.filter(this.agents, agent => !agent.pos.isEqualTo(container.pos)).forEach(agent => agent.taskPipelineHandler.clear());
     }
+    */
 
-    this.autoRun(this.agents, agent => HarvestRole.pipeline(this.hub, agent, this.source, container, this.initializer.link));
+    if (this.source.energy == 0) {
+      // Sleep until energy respawn
+      return;
+    }
+
+    this.autoRun(this.agents, agent => HarvestRole.pipeline(this.hub, agent, this.source, this.initializer.container, this.initializer.link));
 
   }
 

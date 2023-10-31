@@ -6,7 +6,8 @@ import { CPU } from "cpu/CPU";
 import { log } from "utils/log";
 import { printCreep } from "utils/creep-utils";
 import { OK_PIPELINE_READY, TaskPipeline, TaskPipelineHandler } from "task/task-pipeline";
-import { PROCESS_PRIORITY_LOW } from "cpu/process";
+import { PROCESS_PRIORITY_LOW, pushProcess } from "cpu/process";
+import { Hub } from "hub/Hub";
 
 
 export interface AgentSetup {
@@ -111,7 +112,7 @@ export class Agent {
     }
   }
 
-  run() {
+  run(hub: Hub) {
 
     this.lastRunTick = Game.time;
 
@@ -119,7 +120,13 @@ export class Agent {
 
     if (result == OK_PIPELINE_READY) {
       // Other task should be run into the same tick
-      CPU.cpu().pushProcess(() => this.run(), PROCESS_PRIORITY_LOW);
+      // CPU.cpu().pushProcess(() => this.run(), PROCESS_PRIORITY_LOW);
+      pushProcess(hub.processStack, () => {
+        const start = Game.cpu.getUsed();
+        this.run(hub);
+        const timeElasped = Game.cpu.getUsed() - start;
+        hub.creepCPU += timeElasped;
+      }, PROCESS_PRIORITY_LOW);
     }
 
   }

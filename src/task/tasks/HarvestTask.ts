@@ -9,8 +9,8 @@ export class HarvestTask extends Task {
 
   _container?: StoreStructure | null;
 
-  constructor(target: Source | Mineral<MineralConstant> | Deposit, container?: StoreStructure | null) {
-    super(TASK_HARVEST_NAME, target, { oneShoot: false, targetRange: 1, containerID: container?.id });
+  constructor(target: Source | Mineral<MineralConstant> | Deposit, container?: StoreStructure | null, oneShoot?: boolean) {
+    super(TASK_HARVEST_NAME, target, { oneShoot: oneShoot != undefined ? oneShoot : false, targetRange: 1, containerID: container?.id });
     this._container = container;
   }
 

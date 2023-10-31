@@ -1,7 +1,7 @@
 import { Actor } from "Actor";
 import { Agent, AgentSetup, AgentRequestOptions } from "agent/Agent";
 import { SpawnRequest } from "area/hub/agent-factory";
-import { Hub } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
 import { log } from "utils/log";
 import _ from "lodash";
 import { TaskPipeline } from "task/task-pipeline";
@@ -16,6 +16,7 @@ export abstract class Daemon implements Actor {
   hub: Hub;
   room: Room;
   pos: RoomPosition;
+  activity: RunActivity;
   memory: Memory | FlagMemory;
 
   priority: number;
@@ -26,13 +27,14 @@ export abstract class Daemon implements Actor {
 
   private lastRefreshTime: number;
 
-  constructor(hub: Hub, initializer: Actor, name: string, priority: number = 100) {
+  constructor(hub: Hub, initializer: Actor, name: string, activity: RunActivity, priority: number = 100) {
     this.name = name;
     this.ref = `${this.name}:${initializer.ref}`;
     this.hub = hub;
     this.room = initializer.room!;
     this.priority = priority;
     this.pos = initializer.pos;
+    this.activity = activity;
     this.lastRefreshTime = Game.time;
 
     this.agentUsageReport = {};
@@ -99,11 +101,14 @@ export abstract class Daemon implements Actor {
 
   protected wishList(quantity: number, setup: AgentSetup, opts = {} as AgentRequestOptions) {
 
+    const spawner = this.hub.areas.agentFactory;
+
     /*
-    if (this.lifetimeFilter(this.agents(setup.role)).length < quantity && this.hub.areas.agentFactory) {
-      this.hub.areas.agentFactory.enqueue(this.generateProtoCreep(setup), priority);
+    if (spawner && this.lifetimeFilter(this.agentsByRole[setup.role] ?? []).length < quantity) {
+      // spawner.enqueue(spawner.generateProtoCreep(setup, this), priority);
     }
     */
+
 
     const creepQuantity = (this.agentsByRole[setup.role] ?? []).length;
 
@@ -129,7 +134,7 @@ export abstract class Daemon implements Actor {
       return;
     }
 
-    _.filter(agents, agent => agent.taskPipelineHandler.empty).forEach(agent => {
+    _.filter(agents, agent => agent.taskPipelineHandler.empty && !agent.creep.spawning).forEach(agent => {
       agent.taskPipelineHandler.pipeline = createTasks(agent);
     });
 

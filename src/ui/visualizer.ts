@@ -94,7 +94,7 @@ export class Visualizer {
 		return { x: pos.x + 0.25, y: pos.y + 1.1 * CHAR_HEIGHT };
 	}
 
-	static info_box(header: string, content: string[] | string[][], pos: { x: number, y: number, roomName?: string }, width: number): number {
+	static infoBox(header: string, content: string[] | string[][], pos: { x: number, y: number, roomName?: string }, width: number): number {
 		// const vis = new RoomVisual(pos.roomName);
 		// vis.rect(pos.x, pos.y - charHeight, width, 1.1 * charHeight, {opacity: 0.15});
 		// vis.box(pos.x, pos.y - charHeight, width, ((content.length || 1) + 1.1 + .25) * charHeight,

@@ -1,6 +1,7 @@
 import { Task } from "./Task";
 import { AttackTask } from "./tasks/AttackTask";
 import { BuildTask } from "./tasks/BuildTask";
+import { DismantleTask } from "./tasks/DismantleTask";
 import { DropTask } from "./tasks/DropTask";
 import { HarvestTask } from "./tasks/HarvestTask";
 import { PickupTask } from "./tasks/PickupTask";
@@ -57,12 +58,16 @@ export class Tasks {
     return new BuildTask(target);
   }
 
+  static dismantle(structure: Structure<StructureConstant>) {
+    return new DismantleTask(structure);
+  }
+
   static drop(pos: RoomPosition, resourceType: ResourceConstant): Task {
     return new DropTask(pos, resourceType);
   }
 
-  static harvest(target: Source | Mineral<MineralConstant> | Deposit, container?: StoreStructure | null): Task {
-    return new HarvestTask(target, container);
+  static harvest(target: Source | Mineral<MineralConstant> | Deposit, container?: StoreStructure | null, oneShoot?: boolean): Task {
+    return new HarvestTask(target, container, oneShoot);
   }
 
   static pickup(resource: Resource<ResourceConstant>): Task {
@@ -81,8 +86,8 @@ export class Tasks {
     return new SignTask(controller, text);
   }
 
-  static transfer(target: StoreStructure, resourceType: ResourceConstant): Task {
-    return new TransferTask(target, resourceType);
+  static transfer(target: StoreStructure, resourceType: ResourceConstant, amount?: number): Task {
+    return new TransferTask(target, resourceType, amount);
   }
 
   static upgrade(target: StructureController): Task {
@@ -93,8 +98,8 @@ export class Tasks {
     return new WaitTask(pos, targetRange);
   }
 
-  static withdraw(target: StoreStructure | Tombstone, resourceType: ResourceConstant): Task {
-    return new WithdrawTask(target, resourceType);
+  static withdraw(target: StoreStructure | Tombstone, resourceType: ResourceConstant, amount?: number): Task {
+    return new WithdrawTask(target, resourceType, amount);
   }
 
 }

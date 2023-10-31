@@ -4,7 +4,7 @@ import { Agent, AgentRequestOptions, AgentSetup } from "agent/Agent";
 import { AGENT_PRIORITIES } from "agent/agent-setup";
 import { ScoutRole } from "agent/roles/roles";
 import { Daemon } from "daemons/daemon";
-import { Hub } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
 import _ from "lodash";
 import { Mem } from "memory/Memory";
 import { registerOutpost } from "room/room-analyse";
@@ -27,7 +27,7 @@ export class ProbeDaemon extends Daemon {
   nextRooms: string[];
 
   constructor(hub: Hub, initializer: Actor) {
-    super(hub, initializer, 'probe');
+    super(hub, initializer, 'probe', RunActivity.Explore);
     this.explorerMemory = Mem.wrap(initializer.memory, 'explorer', DEFAULT_EXPLORER_MEMORY);
     this.nextRooms = this.explorerMemory.nextRooms;
   }

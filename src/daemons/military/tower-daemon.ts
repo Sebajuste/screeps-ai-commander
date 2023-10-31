@@ -1,9 +1,9 @@
 import { Actor } from "Actor";
 import { Agent } from "agent/Agent";
 import { CPU } from "cpu/CPU";
-import { PROCESS_PRIORITY_LOW, PROCESS_PRIORITY_NORMAL } from "cpu/process";
+import { PROCESS_PRIORITY_HIGHT, PROCESS_PRIORITY_LOW, PROCESS_PRIORITY_NORMAL, pushProcess } from "cpu/process";
 import { Daemon } from "daemons";
-import { Hub } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
 import _ from "lodash";
 import { log } from "utils/log";
 
@@ -20,7 +20,7 @@ export class TowerDaemon extends Daemon {
   structureDamaged?: Structure;
 
   constructor(hub: Hub, initializer: Actor) {
-    super(hub, initializer, 'tower');
+    super(hub, initializer, 'tower', RunActivity.Always);
     this.closestHostile = null;
   }
 
@@ -39,14 +39,14 @@ export class TowerDaemon extends Daemon {
     // const closestHostile = tower.pos.findClosestByRange(this.hub.hostilesCreepsByRooms[tower.pos.roomName] ?? []);
 
     if (hostile) {
-      CPU.cpu().pushProcess(() => {
+      pushProcess(this.hub.processStack, () => {
         const r = tower.attack(hostile);
         if (r == OK) {
           return;
         } else {
           log.warning(`${this.print} cannot attack hostile ${hostile.name}`)
         }
-      }, PROCESS_PRIORITY_NORMAL - 10);
+      }, PROCESS_PRIORITY_HIGHT);
     }
 
     // heal
@@ -54,7 +54,7 @@ export class TowerDaemon extends Daemon {
 
       if (agentInjured) {
 
-        CPU.cpu().pushProcess(() => {
+        pushProcess(this.hub.processStack, () => {
           const r = tower.heal(agentInjured.creep);
           if (r == OK) {
             return;
@@ -74,7 +74,7 @@ export class TowerDaemon extends Daemon {
       // const nearest = _.last(_.sortBy(damagedStructures, structure => structure.pos.getRangeTo(tower.pos)));
 
       if (structureDamaged) {
-        CPU.cpu().pushProcess(() => tower.repair(structureDamaged), PROCESS_PRIORITY_LOW);
+        pushProcess(this.hub.processStack, () => tower.repair(structureDamaged), PROCESS_PRIORITY_LOW);
       }
     }
 
@@ -105,9 +105,13 @@ export class TowerDaemon extends Daemon {
       return;
     }
 
+    const hostiles = this.hub.hostilesCreepsByRooms[this.pos.roomName] ?? [];
+
+    log.debug(`init Tower hostiles : ${hostiles.length}`)
+
     // Defense
-    if ((this.hub.hostilesCreepsByRooms[this.pos.roomName] ?? []).length > 0) {
-      this.closestHostile = this.pos.findClosestByRange(this.hub.hostilesCreepsByRooms[this.pos.roomName] ?? []);
+    if (hostiles.length > 0) {
+      this.closestHostile = this.pos.findClosestByRange(hostiles);
     } else {
       this.closestHostile = null;
     }
@@ -122,11 +126,11 @@ export class TowerDaemon extends Daemon {
     }
     */
 
-    /*
-    const damagedStructures = _.filter(this.hub.structuresByRooms[this.pos.roomName] ?? [], structure => structure.hits < structure.hitsMax && structure.hits < TowerDaemon.Settings.maximumRepairHit);
+
+    const damagedStructures = _.filter(this.hub.structuresByRooms[this.pos.roomName] ?? [], structure => structure.hits < structure.hitsMax && structure.hits < TowerDaemon.Settings.maximumRepairHit && !this.hub.roomPlanner.isDismantle(structure));
 
     this.structureDamaged = damagedStructures[0];
-    */
+
 
     if (!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) == 0) {
       // Request energy if no supplier are present/planned or storage is empty

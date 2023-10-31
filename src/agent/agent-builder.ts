@@ -45,7 +45,9 @@ export function carryCapacity(bodyParts: BodyParts) {
   return _.sum(bodyParts.filter(bodyPart => bodyPart == CARRY).map(bodyPart => CARRY_CAPACITY));
 }
 
+/*
 export interface CreepSetup {
   role: string;
   body_parts: BodyPartConstant[]
 }
+*/

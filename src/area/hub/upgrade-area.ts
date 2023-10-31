@@ -6,7 +6,7 @@ import _ from "lodash";
 import { Mem, MemCacheObject } from "memory/Memory";
 import { deserializePos, serializePos, serializeTasks } from "task/task-initializer";
 import { log } from "utils/log";
-import { findClosestByLimitedRange } from "utils/util-pos";
+import { findAtPos, findClosestByLimitedRange } from "utils/util-pos";
 
 interface UpgradeAreaMemory {
   containerPos?: string;
@@ -25,7 +25,8 @@ export class UpgradeArea extends Area {
   dropPos: RoomPosition;
   linkPos: RoomPosition;
 
-  private _containerCache: MemCacheObject<StructureContainer>;
+  // private _containerCache: MemCacheObject<StructureContainer>;
+  private _container?: StructureContainer;
   private _linkCache: MemCacheObject<StructureLink>;
   private _constructionSiteCache: MemCacheObject<ConstructionSite>;
 
@@ -34,7 +35,7 @@ export class UpgradeArea extends Area {
 
     this.memory = Mem.wrap(this.hub.memory, 'upgradeArea');
 
-    this._containerCache = new MemCacheObject<StructureContainer>(this.memory, 'container');
+    // this._containerCache = new MemCacheObject<StructureContainer>(this.memory, 'container');
     this._linkCache = new MemCacheObject<StructureLink>(this.memory, 'link');
     this._constructionSiteCache = new MemCacheObject<ConstructionSite>(this.memory, 'constructionSite');
 
@@ -60,8 +61,12 @@ export class UpgradeArea extends Area {
     this.linkPos = deserializePos(this.memory.linkPos!);
   }
 
-  get container(): StructureContainer | null {
-    return this._containerCache.value;
+  get container(): StructureContainer | undefined {
+    if (!this._container) {
+      this._container = findAtPos(this.dropPos, this.hub.containersByRooms[this.pos.roomName] ?? []);
+    }
+    // return this._containerCache.value;
+    return this._container!;
   }
 
   get link(): StructureLink | null {
@@ -86,10 +91,13 @@ export class UpgradeArea extends Area {
   refresh() {
     super.refresh();
 
+    this._container = undefined;
+    /*
     this._containerCache.refresh(this.memory);
     if (!this._containerCache.isValid()) {
       this._containerCache.value = findClosestByLimitedRange(this.pos, this.hub.containersByRooms[this.room.name] ?? [], 5);
     }
+    */
 
     this._linkCache.refresh(this.memory);
     if (!this._linkCache.isValid()) {
@@ -105,7 +113,7 @@ export class UpgradeArea extends Area {
 
   init(): void {
 
-    if (!this.container && !this.constructionSite) {
+    if (!this.link && !this.container && !this.constructionSite && this.hub.level < 5) {
       // Require container
       this.dropPos.createConstructionSite(STRUCTURE_CONTAINER);
     }
@@ -113,6 +121,11 @@ export class UpgradeArea extends Area {
     if (!this.link && !this.constructionSite && this.hub.level >= 5) {
       // Require link
       this.linkPos.createConstructionSite(STRUCTURE_LINK);
+    }
+
+    if (this.link && this.container) {
+      // Dismantle obselete container
+      this.hub.roomPlanner.addDismantle(this.container);
     }
 
   }

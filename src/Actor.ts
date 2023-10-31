@@ -1,4 +1,4 @@
-import { Hub } from "./hub/Hub";
+import { Hub, RunActivity } from "./hub/Hub";
 
 
 export interface Actor {
@@ -8,4 +8,5 @@ export interface Actor {
   room: Room;
   pos: RoomPosition;
   memory: Memory | FlagMemory;
+  performanceReport: { [stat: string]: number };
 }

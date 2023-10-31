@@ -1,12 +1,18 @@
-import { dir } from "console";
-import { CPU } from "cpu/CPU";
-import { PROCESS_PRIORITY_HIGHT } from "cpu/process";
+import { PROCESS_PRIORITY_HIGHT, pushProcess } from "cpu/process";
 import { Daemon } from "daemons/daemon";
 import { Directive } from "directives/Directive";
 import { Hub } from "hub/Hub";
-import _ from "lodash";
+import _, { Dictionary } from "lodash";
+import { Mem } from "memory/Memory";
 import { log } from "utils/log";
 
+export interface DispatcherMemory {
+  suspendUntil: { [ref: string]: number };
+}
+
+const DEFAULT_MEMORY: DispatcherMemory = {
+  suspendUntil: {}
+};
 
 export class Dispatcher {
 
@@ -18,12 +24,50 @@ export class Dispatcher {
 
   hub: Hub;
   daemons: Daemon[];
+  daemonsByActivity: Dictionary<Daemon[]>;
+  _runableDaemons?: Daemon[];
   directives: Directive[];
+  memory: DispatcherMemory;
 
   constructor(hub: Hub) {
     this.hub = hub;
     this.daemons = [];
+    this.daemonsByActivity = {};
     this.directives = [];
+
+    this.memory = Mem.wrap(hub.memory, 'dispatcher', DEFAULT_MEMORY);
+  }
+
+  get runableDaemons(): Daemon[] {
+
+    if (!this._runableDaemons) {
+      this._runableDaemons = _.filter(this.daemons, daemon => !this.isDaemonSuspended(daemon));
+    }
+    return this._runableDaemons;
+
+  }
+
+  suspendDaemon(daemon: Daemon, ticks: number) {
+    if (!this.isDaemonSuspended(daemon)) {
+      this.memory.suspendUntil[daemon.ref] = Game.time + ticks;
+      log.info(`${this.hub.print} Suspend daemon ${daemon.name} for ${ticks} ticks`)
+    }
+  }
+
+  activeDaemon(daemon: Daemon) {
+    delete this.memory.suspendUntil[daemon.ref];
+    log.info(`${this.hub.print} daemon ${daemon.name} activated`);
+  }
+
+  isDaemonSuspended(daemon: Daemon) {
+    if (this.memory.suspendUntil[daemon.ref]) {
+      if (Game.time > this.memory.suspendUntil[daemon.ref]) {
+        this.activeDaemon(daemon);
+        return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   registerDaemon(daemon: Daemon) {
@@ -35,11 +79,20 @@ export class Dispatcher {
 
     this.daemons.push(daemon);
     this.daemons = _.orderBy(this.daemons, ['priority']);
+
+    if (!this.daemonsByActivity[daemon.activity]) {
+      this.daemonsByActivity[daemon.activity] = [];
+    }
+    this.daemonsByActivity[daemon.activity].push(daemon);
+
     log.debug(`${this.hub.name} register daemon ${daemon.name}`);
   }
 
   removeDaemon(daemon: Daemon) {
     _.remove(this.daemons, sys => sys.ref == daemon.ref);
+    if (this.daemonsByActivity[daemon.activity]) {
+      _.remove(this.daemonsByActivity[daemon.activity], sys => sys.ref == daemon.ref);
+    }
     log.debug(`${this.hub.name} remove daemon ${daemon.name}`);
   }
 
@@ -101,6 +154,20 @@ export class Dispatcher {
     return roledata;
   }
 
+  getDirectiveReport(): { data: string[][], styles: TextStyle[] } {
+    const styles: TextStyle[] = [];
+
+    const roledata: string[][] = _.chain(this.directives)//
+      .orderBy(area => Math.max(area.performanceReport['init'] ?? 0, area.performanceReport['run'] ?? 0), ['desc'])//
+      .map(area => [`${area.name}@${area.pos.roomName}`, `${area.performanceReport['init'] ?? '---'} ${area.performanceReport['run'] ?? '---'}`])//
+      .value();
+
+    const total = _.reduce(this.directives, (acc, area) => [acc[0] + (area.performanceReport['init'] ?? 0), acc[1] + (area.performanceReport['run'] ?? 0)], [0, 0]);
+
+    roledata.push(['TOTAL', `${Math.round(total[0] * 100 + Number.EPSILON) / 100} + ${Math.round(total[1] * 100 + Number.EPSILON) / 100} = ${Math.round((total[0] + total[1]) * 100 + Number.EPSILON) / 100}`]);
+    return { data: roledata, styles: styles };
+  }
+
   getDaemonReport(): { data: string[][], styles: TextStyle[] } {
 
     // const roledata: string[][] = [];
@@ -126,13 +193,20 @@ export class Dispatcher {
   }
 
   refresh() {
-    this.directives.forEach(directive => CPU.pushProcess(() => directive.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset));
-    this.daemons.forEach(daemon => CPU.pushProcess(() => daemon.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.daemonPriotityOffset));
+    this._runableDaemons = undefined;
+    this.directives.forEach(directive => pushProcess(this.hub.processStack, () => directive.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset));
+    this.daemons.forEach(daemon => pushProcess(this.hub.processStack, () => daemon.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.daemonPriotityOffset));
   }
 
   init() {
-    this.directives.forEach(directive => CPU.pushProcess(() => directive.init(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset + 10));
-    this.daemons.forEach(daemon => CPU.pushProcess(() => {
+    this.directives.forEach(directive => pushProcess(this.hub.processStack, () => {
+      const start = Game.cpu.getUsed();
+      directive.init();
+      const cpuCost = Game.cpu.getUsed() - start;
+      directive.performanceReport['init'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset + 10));
+
+    this.runableDaemons.forEach(daemon => pushProcess(this.hub.processStack, () => {
       const start = Game.cpu.getUsed();
       daemon.preInit();
       daemon.init();
@@ -142,8 +216,14 @@ export class Dispatcher {
   }
 
   run() {
-    this.directives.forEach(directive => CPU.pushProcess(() => directive.run(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset + 20));
-    this.daemons.forEach(daemon => CPU.pushProcess(() => {
+    this.directives.forEach(directive => pushProcess(this.hub.processStack, () => {
+      const start = Game.cpu.getUsed();
+      directive.run();
+      const cpuCost = Game.cpu.getUsed() - start;
+      directive.performanceReport['run'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset + 20));
+
+    this.runableDaemons.forEach(daemon => pushProcess(this.hub.processStack, () => {
       const start = Game.cpu.getUsed();
       daemon.run();
       const cpuCost = Game.cpu.getUsed() - start;

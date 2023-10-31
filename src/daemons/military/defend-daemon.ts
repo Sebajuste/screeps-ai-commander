@@ -4,12 +4,12 @@ import { selectBodyParts } from "agent/agent-builder";
 import { AGENT_PRIORITIES, COMMANDO_TEMPLATE } from "agent/agent-setup";
 import { CommandoRole } from "agent/roles/roles";
 import { Daemon } from "daemons";
-import { Hub } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
 
 export class DefendDaemon extends Daemon {
 
   constructor(hub: Hub, initializer: Actor) {
-    super(hub, initializer, 'defend');
+    super(hub, initializer, 'defend', RunActivity.Outpost);
   }
 
   private spawnHandler() {

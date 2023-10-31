@@ -5,8 +5,8 @@ export const TASK_WITHDRAW_NAME = 'withdraw';
 
 export class WithdrawTask extends Task {
 
-  constructor(target: StoreStructure | Tombstone, resourceType: ResourceConstant) {
-    super(TASK_WITHDRAW_NAME, target, { targetRange: 1, oneShoot: true, resourceType: resourceType })
+  constructor(target: StoreStructure | Tombstone, resourceType: ResourceConstant, amount?: number) {
+    super(TASK_WITHDRAW_NAME, target, { targetRange: 1, oneShoot: true, resourceType: resourceType, amount: amount })
   }
 
   isFinished(creep: Creep): boolean {
@@ -14,7 +14,7 @@ export class WithdrawTask extends Task {
   }
 
   action(creep: Creep): number {
-    return creep.withdraw(this.target as StoreStructure | Tombstone, this.options.resourceType);
+    return creep.withdraw(this.target as StoreStructure | Tombstone, this.options.resourceType, this.options.amount);
   }
 
 }

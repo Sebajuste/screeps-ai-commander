@@ -334,6 +334,7 @@ export class BunkerRoomPlanner extends RoomPlanner {
   }
 
   refresh() {
+    super.refresh();
     this.memory = Mem.wrap(this.hub.memory, 'roomPlanner', MEMORY_DEFAULT);
     this.bunker = this.memory.anchor;
     this.plan = undefined;

@@ -32,6 +32,13 @@ export class OutpostDirective extends Directive {
     }
 
     spawnDaemons(): void {
+
+        const hasSource = this.hub.sources.find(source => source.pos.roomName == this.pos.roomName) != undefined;
+
+        if (!hasSource) {
+            return;
+        }
+
         this.daemons.defend = new DefendDaemon(this.hub, this);
         if (this.hub.level > 4) {
             this.daemons.reserve = new ReserveDaemon(this.hub, this);

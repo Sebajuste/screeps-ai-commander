@@ -4,9 +4,9 @@ import { selectBodyParts } from "agent/agent-builder";
 import { AGENT_PRIORITIES, BUIDER_TEMPLATE } from "agent/agent-setup";
 import { BuilderRole, RepairRole } from "agent/roles/roles";
 import { Daemon } from "daemons/daemon";
-import { Hub } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
 import { BuildPriorities } from "hub/room-planner/room-priorities-structures";
-import _, { Dictionary } from "lodash";
+import _ from "lodash";
 import { Mem, MemCacheObject } from "memory/Memory";
 import { log } from "utils/log";
 import { findClosestByLimitedRange, getMultiRoomRange } from "utils/util-pos";
@@ -26,7 +26,7 @@ export class BuildDaemon extends Daemon {
   private repairCache: MemCacheObject<Structure>;
 
   constructor(hub: Hub, initializer: Actor) {
-    super(hub, initializer, 'build');
+    super(hub, initializer, 'build', RunActivity.Build);
     this.initializer = initializer;
     this.memory = Mem.wrap(initializer.memory, 'build_daemon', {});
 
@@ -60,7 +60,7 @@ export class BuildDaemon extends Daemon {
       bodyParts: bodyParts
     };
 
-    this.wishList(2, setup, options);
+    this.wishList(this.hub.level < 3 ? 2 : 1, setup, options);
 
   }
 
@@ -93,6 +93,7 @@ export class BuildDaemon extends Daemon {
     }
 
     return _.chain(this.hub.constructionSites ?? [])//
+      .filter(site => Game.rooms[site.pos.roomName] != undefined)//
       .orderBy(site => siteScore(this.hub, site), ['desc'])//
       .first()//
       .value();
@@ -100,8 +101,9 @@ export class BuildDaemon extends Daemon {
   }
 
   private getBestRepair(): Structure | null {
+
     return _.chain(this.hub.structures ?? [])//
-      .filter(structure => structure.hits < structure.hitsMax)//
+      .filter(structure => structure.hits < structure.hitsMax && Game.rooms[structure.pos.roomName] != undefined && !this.hub.roomPlanner.isDismantle(structure))//
       .orderBy(['hitsMax'], ['asc'])//
       .first()//
       .value();
@@ -116,6 +118,7 @@ export class BuildDaemon extends Daemon {
   }
 
   init(): void {
+
     if (this.hub.constructionSites.length > 0) {
       this.spawnBuilderHandler();
     }
@@ -137,18 +140,20 @@ export class BuildDaemon extends Daemon {
     /**
      * Handle resources
      */
-    if (this.constructionSite && (this.agentsByRole['builder'] ?? []).length > 0) {
+    if (this.constructionSite && (this.agentsByRole['builder'] ?? []).length > 0 && this.hub.level < 4) {
 
-      const drops = _.filter(this.hub.dropsByRooms[this.pos.roomName] ?? [], drop => drop.resourceType == RESOURCE_ENERGY);
+      const drops = _.filter(this.hub.dropsByRooms[this.pos.roomName] ?? [], drop => drop.resourceType == RESOURCE_ENERGY && Game.rooms[drop.pos.roomName] != undefined);
       const drop = findClosestByLimitedRange(this.constructionSite.pos, drops, 5);
 
-      const amount = 300 - (drop?.amount ?? 0)
+      const energyRequired = Math.floor((this.constructionSite.progressTotal - this.constructionSite.progress) / 5);
+      const amount = energyRequired - (drop?.amount ?? 0);
+
+      log.debug(`build site energyRequired: ${energyRequired}, amount: ${amount} `);
 
       if (amount > 0) {
+        log.debug(`Build energy drop at `, this.constructionSite.pos);
         this.hub.logisticsNetwork.requestDrop(this.constructionSite.pos, RESOURCE_ENERGY, amount);
       }
-
-
 
     }
 
@@ -160,12 +165,24 @@ export class BuildDaemon extends Daemon {
 
     this.autoRun(this.agentsByRole['builder'], agent => {
 
-      if (this.constructionSiteCache.value) {
-        return BuilderRole.pipeline(this.hub, agent, this.constructionSiteCache.value);
+
+      if (this.constructionSite) {
+        if (Game.rooms[this.constructionSite.pos.roomName] == undefined) {
+          this.constructionSite = null;
+          return [];
+        } else {
+          return BuilderRole.pipeline(this.hub, agent, this.constructionSite);
+        }
+
       }
 
       if (this.repairCache.value) {
-        return RepairRole.pipeline(this.hub, agent, this.repairCache.value);
+        if (Game.rooms[this.repairCache.value.pos.roomName] == undefined) {
+          this.repairCache.value = null;
+          return [];
+        } else {
+          return RepairRole.pipeline(this.hub, agent, this.repairCache.value);
+        }
       }
 
       return [];
@@ -177,8 +194,8 @@ export class BuildDaemon extends Daemon {
         return RepairRole.pipeline(this.hub, agent, this.repairCache.value);
       }
 
-      if (this.constructionSiteCache.value) {
-        return BuilderRole.pipeline(this.hub, agent, this.constructionSiteCache.value);
+      if (this.constructionSite) {
+        return BuilderRole.pipeline(this.hub, agent, this.constructionSite);
       }
 
       return [];

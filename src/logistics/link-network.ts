@@ -20,6 +20,12 @@ export class LinkNetwork {
     return `<a href="!/room/${Game.shard.name}/${this.hub.pos.roomName}">[${this.hub.name} LinkNetwork]</a>`
   }
 
+  hasRequest(link: StructureLink): boolean {
+
+    return this._inputs.find(req => req.id == link.id) != undefined && this._outputs.find(req => req.id == link.id) != undefined;
+
+  }
+
   requestInput(link: StructureLink) {
 
     if (link.store.getFreeCapacity(RESOURCE_ENERGY) < 10) return;

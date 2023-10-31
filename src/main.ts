@@ -31,7 +31,7 @@ import { WithdrawTask } from "task/tasks/WithdrawTask";
 import { Agent } from "agent/Agent";
 import { deserializeTasks, serializeTasks } from "task/task-initializer";
 import { BuildDaemon, Daemon, HarvestDaemon, HaulerDaemon, ProbeDaemon, UpgradeDaemon } from "daemons";
-
+import { Scheduler } from "cpu/scheduler";
 
 let commander: any = null;
 
@@ -113,13 +113,15 @@ function main() {
 
   commander.init();
   commander.run();
-  commander.visuals();
 
-  CPU.cpu().run();
+  const scheduler: Scheduler = commander.scheduleProcess();
+  CPU.cpu().run(scheduler);
+
+  // commander.visuals();
 
   const elapsedTime = Date.now() - start;
 
-  log.info(`[${Game.time}] Loop in ${elapsedTime} ms stats: ${Game.cpu.getUsed()}, total creeps: ${Object.keys(Game.creeps).length}, creep CPU: ${Game.cpu.getUsed() / Math.max(Object.keys(Game.creeps).length, 1)}`);
+  log.info(`[${Game.time}] Tick in ${elapsedTime}ms - CPU: ${Math.round((Number.EPSILON + Game.cpu.getUsed()) * 100) / 100}, total creeps: ${Object.keys(Game.creeps).length}, creep CPU: ${Game.cpu.getUsed() / Math.max(Object.keys(Game.creeps).length, 1)}`);
 
 }
 

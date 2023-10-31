@@ -1,10 +1,11 @@
 import { AgentSetup } from "agent/Agent";
 import { bodyCost } from "agent/agent-builder";
 import { Area } from "area/Area";
-import { Daemon } from "daemons";
+import { Daemon, HaulerDaemon } from "daemons";
 import { Hub } from "hub/Hub";
 import _ from "lodash";
 import { Mem } from "memory/Memory";
+import { Settings } from "settings";
 import { log } from "utils/log";
 import { exponentialMovingAverage } from "utils/stats";
 
@@ -42,6 +43,10 @@ export class AgentFactoryArea extends Area {
   spawns: StructureSpawn[];
   availableSpawns: StructureSpawn[];        // Filled by refresh
   extensions: StructureExtension[];         // Filled by refresh
+
+  daemons: {
+    hauler: HaulerDaemon
+  };
 
   private _nextAvailability: number | undefined;
   private productionPriorities: number[];
@@ -85,7 +90,7 @@ export class AgentFactoryArea extends Area {
     this.populateStructure();
   }
 
-  private generateProtoCreep(setup: AgentSetup, daemon: Daemon, memory?: any): ProtoCreep {
+  generateProtoCreep(setup: AgentSetup, daemon: Daemon, memory?: any): ProtoCreep {
     // Generate the creep body
     // let creepBody: BodyPartConstant[];
     // if (overlord.colony.incubator) { // if you're being incubated, build as big a creep as you want
@@ -131,12 +136,11 @@ export class AgentFactoryArea extends Area {
       spawnToUse = this.availableSpawns.shift();
     }
     if (spawnToUse) { // if there is a spawn, create the creep
-      /*
-      if (this.colony.bunker && this.colony.bunker.coreSpawn
-        && spawnToUse.id == this.colony.bunker.coreSpawn.id && !options.directions) {
-        options.directions = [TOP, RIGHT]; // don't spawn into the manager spot
+
+      if (this.hub.areas.hubCenter && this.hub.areas.hubCenter.coreSpawn && spawnToUse.id == this.hub.areas.hubCenter.coreSpawn.id && !options.directions) {
+        options.directions = [LEFT, TOP]; // don't spawn into the router spot
       }
-      */
+
       protoCreep.name = `${protoCreep.name}/${Game.time}`; // modify the creep name to make it unique
       if (bodyCost(protoCreep.body) > this.room.energyCapacityAvailable) {
         return ERR_ROOM_ENERGY_CAPACITY_NOT_ENOUGH;
@@ -165,8 +169,8 @@ export class AgentFactoryArea extends Area {
 
     for (const priority of sortedKeys) {
 
-      // if (this.colony.defcon >= DEFCON.playerInvasion
-      // 	&& !this.colony.controller.safeMode
+      // if (this.hub.defcon >= DEFCON.playerInvasion
+      // 	&& !this.hub.controller.safeMode
       // 	&& priority > OverlordPriority.warSpawnCutoff) {
       // 	continue; // don't spawn non-critical creeps during wartime
       // }
@@ -216,6 +220,7 @@ export class AgentFactoryArea extends Area {
         break;
       }
     }
+
     // Move creeps off of exit position to let the spawning creep out if necessary
     /*
     for (const spawn of this.spawns) {
@@ -234,17 +239,14 @@ export class AgentFactoryArea extends Area {
   }
 
   private recordStats() {
-    // Compute uptime and overload status
+    // Compute uptime and daemons status
 
     const spawnUsageThisTick = _.filter(this.spawns, spawn => spawn.spawning).length / this.spawns.length;
     const uptime = exponentialMovingAverage(spawnUsageThisTick, this.memory.stats?.uptime, CREEP_LIFE_TIME);
     const longUptime = exponentialMovingAverage(spawnUsageThisTick, this.memory.stats?.longUptime, 5 * CREEP_LIFE_TIME);
-    const overload = exponentialMovingAverage(this.isOverloaded ? 1 : 0, this.memory.stats?.overload, CREEP_LIFE_TIME);
+    const daemons = exponentialMovingAverage(this.isOverloaded ? 1 : 0, this.memory.stats?.overload, CREEP_LIFE_TIME);
 
-    // Stats.log(`colonies.${this.colony.name}.hatchery.uptime`, uptime);
-    // Stats.log(`colonies.${this.colony.name}.hatchery.overload`, overload);
-
-    this.memory.stats = { overload, uptime, longUptime };
+    this.memory.stats = { daemons, uptime, longUptime };
   }
 
   canSpawn(body: BodyPartConstant[]): boolean {
@@ -276,6 +278,8 @@ export class AgentFactoryArea extends Area {
 
   spawnDaemons(): void {
 
+    this.daemons.hauler = new HaulerDaemon(this.hub, this, Settings.hubMaxHauler);
+
   }
 
   refresh() {
@@ -293,6 +297,8 @@ export class AgentFactoryArea extends Area {
       // Direct request only if no storage or supplyer are available. Otherwise supply is in charge on it
       this.handleEnergyRequests();
     }
+
+    this.daemons.hauler.maxQuantity = Math.max(1, this.hub.sources.length - (this.hub.links.length - 2));
   }
 
   run(): void {

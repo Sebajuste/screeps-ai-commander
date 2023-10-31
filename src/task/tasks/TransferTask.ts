@@ -5,8 +5,8 @@ export const TRANSFER_TASK_NAME = 'transfer';
 
 export class TransferTask extends Task {
 
-  constructor(target: StoreStructure, resourceType: ResourceConstant) {
-    super(TRANSFER_TASK_NAME, target, { targetRange: 1, oneShoot: true, resourceType: resourceType })
+  constructor(target: StoreStructure, resourceType: ResourceConstant, amount?: number) {
+    super(TRANSFER_TASK_NAME, target, { targetRange: 1, oneShoot: true, resourceType: resourceType, amount: amount })
   }
 
   isFinished(creep: Creep): boolean {
@@ -20,7 +20,7 @@ export class TransferTask extends Task {
 
   }
   action(creep: Creep): number {
-    return creep.transfer((this.target as StoreStructure), this.options.resourceType);
+    return creep.transfer((this.target as StoreStructure), this.options.resourceType, this.options.amount);
   }
 
 }

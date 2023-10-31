@@ -3,7 +3,7 @@ import { AgentRequestOptions, AgentSetup } from "agent/Agent";
 import { AGENT_PRIORITIES } from "agent/agent-setup";
 import { GuardRole } from "agent/roles/roles";
 import { Daemon } from "daemons";
-import { Hub } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
 import _ from "lodash";
 import { createOutpostDirective } from "room/room-analyse";
 
@@ -11,7 +11,7 @@ export class GuardDaemon extends Daemon {
 
 
   constructor(hub: Hub, initializer: Actor) {
-    super(hub, initializer, `guard`);
+    super(hub, initializer, `guard`, RunActivity.Outpost);
   }
 
   private spawnHandler(targetRoom: string) {
