@@ -117,7 +117,7 @@ function main() {
   const scheduler: Scheduler = commander.scheduleProcess();
   CPU.cpu().run(scheduler);
 
-  // commander.visuals();
+  commander.visuals();
 
   const elapsedTime = Date.now() - start;
 

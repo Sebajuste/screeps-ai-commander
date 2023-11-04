@@ -56,6 +56,13 @@ export class Agent {
     this.memory.lastRunTick = v;
   }
 
+  get spawning(): boolean {
+    return this.creep.spawning;
+  }
+
+  get ticksToLive(): number | undefined {
+    return this.creep.ticksToLive;
+  }
 
   get id(): Id<Creep> {
     return this.creep.id;

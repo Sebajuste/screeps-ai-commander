@@ -517,47 +517,71 @@ export class SupplierRole {
 
     const fillRequired = _.filter(destinations, dest => dest.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
 
-    log.debug(`Fill Required : ${fillRequired.length}, sources: ${sources.length}`)
-
     if (fillRequired.length == 0) {
       // No action required
       return [];
     }
 
-    if (agent.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-      // Supply Energy
-      const sortedDestinations = _.orderBy(fillRequired, desination => destinationScore(agent, desination), ['desc']);
-      const destination: any | undefined = _.first(sortedDestinations);
-      if (destination) {
-        _.remove(destinations, it => it == destination);
-        return [Tasks.transfer(destination, RESOURCE_ENERGY)];
-      }
-    }
+    const pipeline: TaskPipeline = [];
 
-    const requireTransfer = _.find(destinations, destination => destination.store.getFreeCapacity(RESOURCE_ENERGY) > 0) != undefined;
+    let supplierEnergy = agent.store.getUsedCapacity(RESOURCE_ENERGY) ?? 0;
 
-    if (requireTransfer && agent.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+    if (agent.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
       // Take Energy
 
-      // From Source
-      const source: any = _.last(_.sortBy(sources, source => sourceScore(agent, source)));
-      if (source) {
-        return [Tasks.withdraw(source, RESOURCE_ENERGY)];
-      }
-
-      // From drops
+      // From near drops
       const drops = agent.pos.findInRange(hub.dropsByRooms[agent.room.name], 5, { filter: (drop: Resource) => drop.resourceType == RESOURCE_ENERGY });
       const drop = _.first(_.orderBy(drops, d => dropScore(agent, d), ['desc']));
 
       if (drop) {
         _.remove(hub.dropsByRooms[agent.room.name], it => it == drop);
-        return [Tasks.pickup(drop)];
+        pipeline.push(Tasks.pickup(drop));
+        supplierEnergy += Math.min(drop.amount, agent.store.getFreeCapacity(RESOURCE_ENERGY));
+      }
+
+      if (supplierEnergy < agent.store.getCapacity(RESOURCE_ENERGY)) {
+
+        // From Source
+        const source: StoreStructure | undefined = _.last(_.sortBy(sources, source => sourceScore(agent, source)));
+        if (source) {
+          pipeline.push(Tasks.withdraw(source, RESOURCE_ENERGY));
+          supplierEnergy += Math.min(source.store.getUsedCapacity(RESOURCE_ENERGY), agent.store.getCapacity(RESOURCE_ENERGY) - supplierEnergy);
+        }
       }
 
     }
 
-    return [];
+    if (pipeline.length == 0 && supplierEnergy == 0) {
+      // No take energy task is set
+      return [];
+    }
+
+    //if (agent.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+    // Supply Energy
+    const sortedDestinations = _.orderBy(fillRequired, desination => destinationScore(agent, desination), ['desc']);
+
+    for (const destination of sortedDestinations) {
+
+      supplierEnergy -= Math.min(supplierEnergy, destination.store.getFreeCapacity(RESOURCE_ENERGY));
+      pipeline.push(Tasks.transfer(destination, RESOURCE_ENERGY));
+      if (supplierEnergy <= 0) {
+        break;
+      }
+    }
+
+    /*
+    const destination: any | undefined = _.first(sortedDestinations);
+    if (destination) {
+      _.remove(destinations, it => it == destination);
+      pipeline.push(Tasks.transfer(destination, RESOURCE_ENERGY));
+    }
+    */
+    // }
+
+    return pipeline;
   }
+
+
 
 }
 
@@ -575,7 +599,7 @@ export class UpgradeRole {
 
     if (!haveEnergy && !nearDrop && !validContainer) {
       // Nothing to do, be close to the controller
-      return [Tasks.wait(hub.controller.pos, 5)];
+      return [Tasks.wait(hub.controller.pos, 3)];
     }
 
     if (haveEnergy) {

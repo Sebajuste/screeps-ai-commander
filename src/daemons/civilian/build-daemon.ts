@@ -66,7 +66,7 @@ export class BuildDaemon extends Daemon {
 
   private spawnRepairerHandler() {
 
-    if (this.hub.structures.length == 0) {
+    if (this.hub.structures.length == 0 && (!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 2000)) {
       // No structure to repair
       return;
     }
@@ -92,7 +92,7 @@ export class BuildDaemon extends Daemon {
       return null;
     }
 
-    return _.chain(this.hub.constructionSites ?? [])//
+    return _.chain(this.hub.runLevel & RunActivity.Outpost ? this.hub.constructionSites : this.hub.constructionSitesByRooms[this.pos.roomName] ?? [])//
       .filter(site => Game.rooms[site.pos.roomName] != undefined)//
       .orderBy(site => siteScore(this.hub, site), ['desc'])//
       .first()//
@@ -102,7 +102,7 @@ export class BuildDaemon extends Daemon {
 
   private getBestRepair(): Structure | null {
 
-    return _.chain(this.hub.structures ?? [])//
+    return _.chain(this.hub.runLevel & RunActivity.Outpost ? this.hub.structures : this.hub.structuresByRooms[this.pos.roomName] ?? [])//
       .filter(structure => structure.hits < structure.hitsMax && Game.rooms[structure.pos.roomName] != undefined && !this.hub.roomPlanner.isDismantle(structure))//
       .orderBy(['hitsMax'], ['asc'])//
       .first()//
@@ -119,23 +119,29 @@ export class BuildDaemon extends Daemon {
 
   init(): void {
 
-    if (this.hub.constructionSites.length > 0) {
+    const haveOutpost = this.hub.haveActivity(RunActivity.Outpost);
+    if (haveOutpost ? this.hub.constructionSites.length > 0 : (this.hub.constructionSitesByRooms[this.pos.roomName] ?? []).length > 0) {
       this.spawnBuilderHandler();
     }
 
-    this.spawnRepairerHandler();
+    if (haveOutpost) {
+      // Repair only for outpost structures
+
+      this.spawnRepairerHandler();
+
+      if (!this.repairCache.value || this.repairCache.value.hits == this.repairCache.value.hitsMax) {
+        this.repairCache.value = this.getBestRepair();
+      }
+    }
 
 
     /**
      * Init
      */
-    if (!this.constructionSite) {
+    if (!this.constructionSite && this.hub.constructionSites.length > 0) {
       this.constructionSite = this.getBestConstruction();
     }
 
-    if (!this.repairCache.value || this.repairCache.value.hits == this.repairCache.value.hitsMax) {
-      this.repairCache.value = this.getBestRepair();
-    }
 
     /**
      * Handle resources

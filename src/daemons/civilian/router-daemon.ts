@@ -21,7 +21,6 @@ export class RouterDaemon extends Daemon {
 
   private spawnRouter() {
 
-    // const links = _.filter(this.hub.structures, structure => structure.structureType == STRUCTURE_LINK);
 
     if (!this.commandCenter.link || this.hub.links.length < 2) {
       // No router require if no link network exists
@@ -147,7 +146,6 @@ export class RouterDaemon extends Daemon {
     if (tower && tower.store.getFreeCapacity(RESOURCE_ENERGY) >= 300) {
       // Tower need refuel
       return fillResourceHandler(tower, RESOURCE_ENERGY);
-
     }
 
     /**
@@ -207,12 +205,28 @@ export class RouterDaemon extends Daemon {
     /**
      * Keep Link ready to use
      */
-    if (link && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && router.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-      // Vacuum link
+    if (link) {
+      if (link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && router.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+        // Vacuum link
 
-      const amount = Math.min(link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy, router.store.getFreeCapacity(RESOURCE_ENERGY));
+        const amount = Math.min(link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy, router.store.getFreeCapacity(RESOURCE_ENERGY));
+        return [Tasks.withdraw(link, RESOURCE_ENERGY, amount), Tasks.transfer(storage, RESOURCE_ENERGY)];
+      }
 
-      return [Tasks.withdraw(link, RESOURCE_ENERGY, amount), Tasks.transfer(storage, RESOURCE_ENERGY)];
+      if (link.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubCenterMinLinkEnergy && storage && storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000) {
+        // Fill Link
+
+        const fillAmount = Settings.hubCenterMinLinkEnergy - link.store.getUsedCapacity(RESOURCE_ENERGY);
+
+        const takeAmount = Math.max(0, fillAmount - router.store.getUsedCapacity(RESOURCE_ENERGY));
+        const pipeline: TaskPipeline = [];
+
+        if (takeAmount > 0) {
+          pipeline.push(Tasks.withdraw(storage, RESOURCE_ENERGY, takeAmount));
+        }
+        pipeline.push(Tasks.transfer(link, RESOURCE_ENERGY, fillAmount));
+        return pipeline;
+      }
     }
 
 
@@ -323,15 +337,22 @@ export class RouterDaemon extends Daemon {
 
     const link = this.commandCenter.link;
     if (link) {
+
+      const upgradeLink = this.hub.areas.upgrade?.link;
+
+      if (upgradeLink && upgradeLink.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.upgradeMinLinkEnergy && link.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+        this.hub.linkNetwork.requestOutput(link);
+      } else if (this.agents.length == 0 && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy) {
+        this.hub.logisticsNetwork.requestOutput(link, RESOURCE_ENERGY, link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy);
+      }
+
       if (link.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-        if (!this.hub.areas.upgrade?.link || this.hub.areas.upgrade?.link.store.getUsedCapacity(RESOURCE_ENERGY) >= Settings.hubCenterMinLinkEnergy || !this.hub.linkNetwork.hasRequest(this.hub.areas.upgrade?.link)) {
+        if (!this.hub.areas.upgrade?.link || this.hub.areas.upgrade?.link.store.getUsedCapacity(RESOURCE_ENERGY) >= Settings.upgradeMinLinkEnergy || !this.hub.linkNetwork.hasRequest(this.hub.areas.upgrade?.link)) {
           // No upgrade link or upgrade link as enough energy
           this.hub.linkNetwork.requestInput(link);
         }
       }
-      if (this.agents.length == 0 && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy) {
-        this.hub.logisticsNetwork.requestOutput(link, RESOURCE_ENERGY, link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy);
-      }
+
     }
 
 

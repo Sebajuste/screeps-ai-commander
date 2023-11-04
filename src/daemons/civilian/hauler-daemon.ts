@@ -4,7 +4,6 @@ import { countBodyPart, selectBodyParts } from "agent/agent-builder";
 import { AGENT_PRIORITIES, HAULER_TEMPLATE } from "agent/agent-setup";
 import { HaulerRole } from "agent/roles/roles";
 import { Daemon } from "daemons/daemon";
-import { HarvestDaemon } from "daemons/resources/harvest-daemon";
 import { Directive } from "directives/Directive";
 import { EnergySourceDirective } from "directives/resources/energy-source-directive";
 import { Hub, RunActivity } from "hub/Hub";
@@ -40,11 +39,17 @@ export class HaulerDaemon extends Daemon {
 
   private spawnHandler() {
 
+    if (this.hub.logisticsNetwork.inputRequest() == 0 || this.hub.logisticsNetwork.outputRequest() == 0) {
+      return;
+    }
+
     const bodyParts = selectBodyParts(HAULER_TEMPLATE, this.hub.room.energyAvailable);
 
-    if (!this._haulerRequire || this._haulerRequireTTL <= Game.time || this.pos.roomName == 'sim') {
+    if (!this._haulerRequire || this._haulerRequireTTL <= Game.time) {
+      // Compute number of hauler required
+
       const totalResourcesToTransport = _.chain(this.hub.dispatcher.directives)//
-        .filter(directive => Directive.isDirective(directive.flag, 'harvest') && !(directive as EnergySourceDirective).link)//
+        .filter(directive => Directive.isDirective(directive.flag, 'harvest') && !(directive as EnergySourceDirective).link && !this.hub.dispatcher.isDaemonSuspended((directive as EnergySourceDirective).daemons.harvest))//
         .map((directive: EnergySourceDirective) => directive.daemons.harvest.inputRate * directive.daemons.harvest.eta * 2.0)//
         .sum()//
         .value();
@@ -57,15 +62,6 @@ export class HaulerDaemon extends Daemon {
 
       this._haulerRequireTTL = Game.time + 15;
     }
-
-
-
-    // const haulerRequire = (this.hub.sources.length - (this.hub.links.length - 2));
-
-    // const haulerQuantity = MathRange(1, this.maxQuantity, haulerEta / carryPerAgent);
-
-
-
 
 
     const setup: AgentSetup = {
@@ -88,6 +84,7 @@ export class HaulerDaemon extends Daemon {
   }
 
   init(): void {
+
     if (!this.reachable) {
       log.warning(`${this.print} room not reachable`)
     }

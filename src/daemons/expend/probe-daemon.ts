@@ -59,25 +59,25 @@ export class ProbeDaemon extends Daemon {
 
   private initNextRooms() {
 
-    if (this.nextRooms.length == 0) {
-      // Need to find other rooms to explore
-
-      log.debug('Scout Daemon init next rooms !')
-
-      const exploration = Exploration.exploration();
-      const exploredRooms = exploration.getRooms();
-
-      this.nextRooms = _.chain(exploredRooms)//
-        .map(room => room.exits)//
-        .flatten()//
-        .uniq()//
-        .filter(roomName => exploration.needUpdate(roomName))//
-        .orderBy(roomName => getRoomRange(this.pos.roomName, roomName), ['asc'])//
-        .slice(0, 5)//
-        .value();
-
-      log.alert(`> this.nextRooms: ${this.nextRooms.length}`);
+    if (this.nextRooms.length > 0) {
+      // No need to find other rooms to explore
+      return;
     }
+
+    const exploration = Exploration.exploration();
+    const exploredRooms = exploration.getRooms();
+
+    this.nextRooms = _.chain(exploredRooms)//
+      .map(room => room.exits)//
+      .flatten()//
+      .uniq()//
+      .filter(roomName => exploration.needUpdate(roomName) && Game.map.getRoomStatus(roomName).status == "normal")//
+      .orderBy(roomName => getRoomRange(this.pos.roomName, roomName), ['asc'])//
+      .slice(0, 5)//
+      .value();
+
+    log.alert(`> this.nextRooms: ${this.nextRooms.length}`);
+
   }
 
   /**

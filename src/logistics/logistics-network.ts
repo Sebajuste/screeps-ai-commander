@@ -1,9 +1,8 @@
 
+import _ from "lodash";
 import { Agent } from "agent/Agent";
 import { HaulerRole } from "agent/roles/roles";
 import { Hub } from "hub/Hub";
-import _ from "lodash";
-import { Settings } from "settings";
 import { EnergyStructure, StoreStructure, isResource, isRoomPosition, isStoreStructure, isTombstone } from "task/task-builder";
 import { GaleShapley, GaleShapleyPreference } from "utils/gale-shapley";
 import { log } from "utils/log";
@@ -166,7 +165,6 @@ export class LogisticsNetwork {
       const carry = isTake ? (hauler.store.getFreeCapacity(request.resourceType) ?? 0) : (hauler.store.getUsedCapacity(request.resourceType) ?? 0);
 
       try {
-        // const distance = hauler.pos.roomName == request.target.pos.roomName ? hauler.pos.getRangeTo(request.target) : Game.map.getRoomLinearDistance(hauler.pos.roomName, request.target.pos.roomName) * 50;
         const distance = Math.max(1.0, ticksUntilFree + getMultiRoomRange(newPos, request.target.pos) * LogisticsNetwork.settings.rangeToPathHeuristic);
 
         const dq = Math.min(amount, carry);
@@ -295,6 +293,14 @@ export class LogisticsNetwork {
     return this._match ?? {};
   }
 
+  inputRequest(): number {
+    return _.fill(this.requests, (req: LogisticsRequest) => req.amount > 0).length;
+  }
+
+  outputRequest(): number {
+    return _.fill(this.requests, (req: LogisticsRequest) => req.amount < 0).length;
+  }
+
   haveRequest(target: LogisticsTarget, resourceType: ResourceConstant = RESOURCE_ENERGY): boolean {
 
     return this.requests.find(req => (req.target.id == target.id || req.target.pos.isEqualTo(target.pos)) && req.resourceType == resourceType) != undefined;
@@ -302,6 +308,11 @@ export class LogisticsNetwork {
   }
 
   requestDrop(pos: RoomPosition, resourceType: ResourceConstant = RESOURCE_ENERGY, amount: number = 1000) {
+
+    if (this.requests.find(req => (req.target.pos.isEqualTo(pos)) && req.resourceType == resourceType) != undefined) {
+      log.warning(`${this.hub.print} Drop logistic already registered with resource ${resourceType} at ${pos}`);
+      return;
+    }
 
     const req = {
       id: `${Math.floor(Math.random() * 10000)}`,
@@ -374,6 +385,17 @@ export class LogisticsNetwork {
    * @returns 
    */
   getLogisticsRequest(transporter: Agent): LogisticsRequest | undefined {
+
+    if (this.transporters.length == 1) {
+      // Shortcut algorithm if only one transporter is available
+
+      const bestRequest = _.chain(this.requests)//
+        .orderBy(request => this.requestHaulerScore(request, transporter), ['desc'])//
+        .first()//
+        .value();
+
+      return bestRequest;
+    }
 
     const needToUpdateHaulerTask = this._match == undefined;
 

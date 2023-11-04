@@ -2,6 +2,7 @@ import { Area } from "area/Area";
 import { RouterDaemon } from "daemons/civilian/router-daemon";
 import { SupplyDaemon } from "daemons/civilian/supply-daemon";
 import { Hub } from "hub/Hub";
+import { log } from "utils/log";
 import { findClosestByLimitedRange } from "utils/util-pos";
 
 export class HubCenterArea extends Area {
@@ -27,7 +28,7 @@ export class HubCenterArea extends Area {
 
   private populateStructure() {
     this.link = findClosestByLimitedRange(this.storage.pos, this.hub.links, 5) as StructureLink ?? undefined;
-    this.coreSpawn = this.hub.spawns.find(spawn => spawn.pos.roomName == this.pos.roomName && spawn.pos.x == this.pos.x && spawn.pos.y == this.pos.y - 1);
+    this.coreSpawn = this.hub.spawns.find(spawn => spawn.pos.roomName == this.pos.roomName && spawn.pos.x == (this.pos.x - 1) && spawn.pos.y == (this.pos.y - 1));
     this.towers = this.pos.findInRange(this.hub.towers, 1);
     this.terminal = this.hub.terminal;
     this.nuker = this.hub.nuker;

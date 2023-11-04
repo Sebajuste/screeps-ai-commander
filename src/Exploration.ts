@@ -1,5 +1,6 @@
 import _, { Dictionary } from "lodash";
 import { Mem } from "memory/Memory";
+import { DistanceTransform } from "utils/distance-transform";
 import { getRoomRange } from "utils/util-pos";
 
 
@@ -18,6 +19,7 @@ export interface ExploredRoom {
   controlledBy?: string;
   controllerPos?: RoomPosition;
   // bunkerAnchor?: RoomPosition;
+  maxWallDistance: number;
 }
 
 export interface ExplorationMemory {
@@ -125,11 +127,6 @@ export class Exploration {
 
   analyseRoom(room: Room) {
 
-    if (room && this.hasRoom(room.name) && this.getRoom(room.name)?.tick != Game.time) {
-      // Already updated
-      return;
-    }
-
     const haveEnnemy = (
       room.find(FIND_HOSTILE_STRUCTURES).length +
       room.find(FIND_HOSTILE_CONSTRUCTION_SITES).length +
@@ -148,6 +145,9 @@ export class Exploration {
       const exists = _.values(Game.map.describeExits(room.name));
       const controllerPos = room.controller?.pos;
 
+      const distanceTransformMap = DistanceTransform.compute(room.name);
+      const maxWallDistance = DistanceTransform.maxDistance(distanceTransformMap);
+
       const info = {
         tick: Game.time,
         haveEnnemy: haveEnnemy,
@@ -155,15 +155,21 @@ export class Exploration {
         minerals: minerals,
         exits: exists,
         controlledBy: username,
-        controllerPos: controllerPos
+        controllerPos: controllerPos,
+        maxWallDistance: maxWallDistance
       } as ExploredRoom;
       this.updateRoom(room.name, info);
 
     } else {
+
+      const distanceTransformMap = DistanceTransform.compute(room.name);
+      const maxWallDistance = DistanceTransform.maxDistance(distanceTransformMap);
+
       const info = {
         tick: Game.time,
         haveEnnemy: haveEnnemy,
         controlledBy: username,
+        maxWallDistance: maxWallDistance
       };
       this.updateRoom(room.name, info);
     }

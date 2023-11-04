@@ -29,13 +29,13 @@ export class UpgradeArea extends Area {
   private _container?: StructureContainer;
   private _linkCache: MemCacheObject<StructureLink>;
   private _constructionSiteCache: MemCacheObject<ConstructionSite>;
+  private _link?: StructureLink | null;
 
   constructor(hub: Hub) {
     super(hub, hub.controller, 'upgradeArea');
 
     this.memory = Mem.wrap(this.hub.memory, 'upgradeArea');
 
-    // this._containerCache = new MemCacheObject<StructureContainer>(this.memory, 'container');
     this._linkCache = new MemCacheObject<StructureLink>(this.memory, 'link');
     this._constructionSiteCache = new MemCacheObject<ConstructionSite>(this.memory, 'constructionSite');
 
@@ -69,8 +69,9 @@ export class UpgradeArea extends Area {
     return this._container!;
   }
 
-  get link(): StructureLink | null {
-    return this._linkCache.value;
+  get link(): StructureLink | null | undefined {
+    // return this._linkCache.value;
+    return this._link;
   }
 
   get constructionSite(): ConstructionSite | null {
@@ -98,6 +99,8 @@ export class UpgradeArea extends Area {
       this._containerCache.value = findClosestByLimitedRange(this.pos, this.hub.containersByRooms[this.room.name] ?? [], 5);
     }
     */
+
+    this._link = this.pos.findClosestByRange(this.hub.links);
 
     this._linkCache.refresh(this.memory);
     if (!this._linkCache.isValid()) {

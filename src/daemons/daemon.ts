@@ -1,10 +1,11 @@
-import { Actor } from "Actor";
+import { Actor, ResourceFlowStats } from "Actor";
 import { Agent, AgentSetup, AgentRequestOptions } from "agent/Agent";
 import { SpawnRequest } from "area/hub/agent-factory";
 import { Hub, RunActivity } from "hub/Hub";
 import { log } from "utils/log";
 import _ from "lodash";
 import { TaskPipeline } from "task/task-pipeline";
+import { Pathing } from "utils/pathing";
 
 export const DEFAULT_PRESPAWN = 50;
 export const MAX_SPAWN_REQUESTS = 100;
@@ -17,7 +18,11 @@ export abstract class Daemon implements Actor {
   room: Room;
   pos: RoomPosition;
   activity: RunActivity;
+  hubDistance?: number;
   memory: Memory | FlagMemory;
+  resourceFlowStats: ResourceFlowStats;
+
+
 
   priority: number;
 
@@ -35,10 +40,12 @@ export abstract class Daemon implements Actor {
     this.priority = priority;
     this.pos = initializer.pos;
     this.activity = activity;
+    this.hubDistance = initializer.memory != undefined ? (initializer.memory as any).hubDistance : undefined;
     this.lastRefreshTime = Game.time;
 
     this.agentUsageReport = {};
     this.performanceReport = {};
+    this.resourceFlowStats = new ResourceFlowStats();
   }
 
   get reachable(): boolean {
@@ -99,18 +106,50 @@ export abstract class Daemon implements Actor {
 
   }
 
-  protected wishList(quantity: number, setup: AgentSetup, opts = {} as AgentRequestOptions) {
+  lifetimeFilter(creeps: (Creep | Agent)[], prespawn = DEFAULT_PRESPAWN, spawnDistance?: number): (Creep | Agent)[] {
 
     const spawner = this.hub.areas.agentFactory;
 
-    /*
-    if (spawner && this.lifetimeFilter(this.agentsByRole[setup.role] ?? []).length < quantity) {
-      // spawner.enqueue(spawner.generateProtoCreep(setup, this), priority);
+    if (!spawnDistance) {
+
+      spawnDistance = 0;
+
+      if (this.hubDistance != undefined) {
+        spawnDistance = this.hubDistance;
+      }
+
+      /*
+      if (this.spawnGroup) {
+        const distances = _.take(_.sortBy(this.spawnGroup.memory.distances), 2);
+        spawnDistance = (_.sum(distances) / distances.length) || 0;
+      } else if (this.hub.areas.agentFactory) {
+        // Use distance or 0 (in case distance returns something undefined due to incomplete pathfinding)
+        spawnDistance = Pathing.distance(this.pos, this.hub.areas.agentFactory.pos) || 0;
+      }
+      if (this.hub.isIncubating && this.hub.spawnGroup) {
+        spawnDistance += this.hub.spawnGroup.stats.avgDistance;
+      }
+      */
     }
-    */
 
+    return _.filter(creeps, creep =>
+      creep.ticksToLive! > CREEP_SPAWN_TIME * creep.body.length + spawnDistance! + prespawn ||
+      creep.spawning ||
+      (!creep.spawning && !creep.ticksToLive) // See: https://screeps.com/forum/topic/443/creep-spawning-is-not-updated-correctly-after-spawn-process
+    );
+  }
 
-    const creepQuantity = (this.agentsByRole[setup.role] ?? []).length;
+  protected wishList(quantity: number, setup: AgentSetup, opts = {} as AgentRequestOptions) {
+
+    let creepQuantity;
+
+    if (opts.noLifetimeFilter) {
+      creepQuantity = this.lifetimeFilter(this.agentsByRole[setup.role] ?? [], opts.prespawn).length;
+    } else {
+      creepQuantity = (this.agentsByRole[setup.role] ?? []).length;
+    }
+
+    log.debug(`${this.print} wishList creepQuantity: ${creepQuantity}`);
 
     const spawnQuantity = quantity - creepQuantity;
 
@@ -144,6 +183,7 @@ export abstract class Daemon implements Actor {
     this._agentByRole = undefined;
     this.agentUsageReport = {};
     this.performanceReport = {};
+    this.resourceFlowStats.clear();
   }
 
   preInit() {

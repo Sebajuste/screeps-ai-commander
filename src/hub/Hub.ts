@@ -51,15 +51,17 @@ export enum RunActivity {
 
 export enum RunLevel {
   // Use all outpost resources
-  BOOST = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Outpost | RunActivity.Upgrade | RunActivity.Build | RunActivity.Miner | RunActivity.Industry | RunActivity.Explore,
+  BOOST = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Upgrade | RunActivity.Outpost | RunActivity.Build | RunActivity.Explore,
   // Use minimum room 
   NORMAL = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Upgrade | RunActivity.Build | RunActivity.Miner | RunActivity.Industry | RunActivity.Explore,
   // Use minimal activity
-  LIMITED = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Repair | RunActivity.Industry,
+  // LIMITED = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Upgrade | RunActivity.Industry,
   // Minimal activity for energy
   MINIMAL = RunActivity.Always | RunActivity.LocalHarvest,
+  // Minimal activity for energy and upgrade
+  MINIMAL_UP = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Upgrade | RunActivity.Explore,
   // Disable the hub  
-  STANDBY = RunActivity.Always | RunActivity.Upgrade
+  STANDBY = RunActivity.Always
 }
 
 
@@ -109,6 +111,8 @@ export class Hub {
 
   sources: Source[];
   minerals: Mineral[];
+
+  drops: Resource[];
   dropsByRooms: { [roomName: string]: Resource[] };
 
   hostilesCreeps: Creep[];
@@ -145,7 +149,7 @@ export class Hub {
     this.logisticsNetwork = new LogisticsNetwork(this);
     this.linkNetwork = new LinkNetwork(this);
 
-    this.runLevel = RunLevel.BOOST;
+    this.runLevel = RunLevel.NORMAL;
 
     this.structuresByRooms = {};
     this.structures = [];
@@ -160,6 +164,7 @@ export class Hub {
 
     this.sources = [];
     this.minerals = [];
+    this.drops = []
     this.dropsByRooms = {};
 
     this.hostilesCreeps = [];
@@ -221,6 +226,10 @@ export class Hub {
     return this._agentsByRoom;
   }
 
+  haveActivity(activityMask: number): boolean {
+    return ((this.runLevel as number) & activityMask) > 0;
+  }
+
   private registerRoomObject() {
     const outputNames = _.map(this.rooms, room => room.name);
 
@@ -264,6 +273,7 @@ export class Hub {
     this.rooms.forEach(room => {
       this.dropsByRooms[room.name] = room.find(FIND_DROPPED_RESOURCES);
     });
+    this.drops = _.flatten(_.values(this.dropsByRooms));
 
     this.hostilesCreeps = _.flatten(_.map(this.rooms, room => room.find(FIND_HOSTILE_CREEPS)));
     this.hostilesCreepsByRooms = _.groupBy(this.hostilesCreeps, creep => creep.room.name);
@@ -368,6 +378,8 @@ export class Hub {
 
   refresh() {
 
+    const start = Game.cpu.getUsed();
+
     // Clear cache
     this._agentsByRole = undefined;
     this._agentsByDaemon = undefined;
@@ -386,17 +398,23 @@ export class Hub {
     this.dispatcher.refresh();
 
     this.roomPlanner.refresh();
+
+    log.debug(`${this.print} refresh cost : ${Math.floor((Game.cpu.getUsed() - start) * 100) / 100}`)
+
   }
 
   init() {
 
     this.creepCPU = 0;
 
-    _.forIn(RunActivity, (value, key) => {
+    /**
+     * Enable/Disable daemons
+     */
+    _.forIn(RunActivity, (activity, key) => {
       if (isNaN(Number(key))) {
 
-        if ((this.runLevel & value) == 0) {
-          _.forEach(this.dispatcher.daemonsByActivity[value], daemon => {
+        if ((this.runLevel & activity) == 0) {
+          _.forEach(this.dispatcher.daemonsByActivity[activity], daemon => {
             this.dispatcher.suspendDaemon(daemon, 100);
           });
         }
@@ -415,6 +433,17 @@ export class Hub {
       area.performanceReport['init'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
     }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 10));
     this.dispatcher.init();
+
+    /**
+     * Set all drops not registered as resource
+     */
+    pushProcess(this.processStack, () => {
+      this.drops.forEach(drop => {
+        if (!this.logisticsNetwork.haveRequest(drop, drop.resourceType)) {
+          this.logisticsNetwork.requestOutput(drop, drop.resourceType);
+        }
+      });
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 10);
 
     pushProcess(this.processStack, () => this.roomPlanner.init());
 

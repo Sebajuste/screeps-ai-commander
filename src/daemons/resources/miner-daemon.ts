@@ -1,14 +1,11 @@
 import { AgentRequestOptions, AgentSetup } from "agent/Agent";
-import { countBodyPart, selectBodyParts } from "agent/agent-builder";
+import { selectBodyParts } from "agent/agent-builder";
 import { AGENT_PRIORITIES, HARVEST_BASIC_STRUCTURE_TEMPLATE } from "agent/agent-setup";
 import { MinerRole } from "agent/roles/roles";
 import { MineralArea } from "area/hub/mineral-area";
 import { Daemon } from "daemons";
 import { Hub, RunActivity } from "hub/Hub";
-import { Mem, MemCacheObject } from "memory/Memory";
 import { Settings } from "settings";
-import { serializePos } from "task/task-initializer";
-import { log } from "utils/log";
 
 
 
@@ -21,8 +18,6 @@ export class MinerDaemon extends Daemon {
     super(hub, minerArea, 'miner', RunActivity.Miner);
     this.minerArea = minerArea;
   }
-
-
 
   private spawnHandler() {
 
@@ -41,25 +36,33 @@ export class MinerDaemon extends Daemon {
 
   }
 
+  requireMineral(): boolean {
+
+    const containerAmount = this.minerArea.container ? (this.minerArea.container.store.getUsedCapacity(this.minerArea.mineral.mineralType) ?? 0) : 0;
+
+    return this.hub.storage != undefined &&
+      (this.hub.storage.store.getUsedCapacity(this.minerArea.mineral.mineralType) + containerAmount) < Settings.hubStorageMaxResource;
+
+  }
+
   init(): void {
 
-    if (this.minerArea.container && this.minerArea.mineral.mineralAmount > 0) {
+    if (this.minerArea.container && this.minerArea.mineral.mineralAmount > 0 && this.requireMineral()) {
       this.spawnHandler();
     }
 
-    const storage = this.hub.storage;
     const container = this.minerArea.container;
-    if (container && storage && container.store.getUsedCapacity(this.minerArea.mineral.mineralType) > 0 && storage.store.getUsedCapacity(this.minerArea.mineral.mineralType) < Settings.hubStorageMaxResource) {
+    if (container && container.store.getUsedCapacity(this.minerArea.mineral.mineralType) > 0 && this.requireMineral()) {
       this.hub.logisticsNetwork.requestOutput(container, this.minerArea.mineral.mineralType);
-      this.hub.logisticsNetwork.requestInput(storage, this.minerArea.mineral.mineralType);
+      this.hub.logisticsNetwork.requestInput(this.hub.storage!, this.minerArea.mineral.mineralType);
     }
 
   }
 
   run(): void {
 
-    if (this.minerArea.mineral.mineralAmount == 0 || !this.minerArea.extractor || !this.minerArea.container) {
-      // Sleep until energy respawn, or structure dependecies ready
+    if (this.minerArea.mineral.mineralAmount == 0 || !this.minerArea.extractor || !this.minerArea.container || !this.requireMineral()) {
+      // Sleep until energy respawn, or structure dependencies ready, or storage is full
       return;
     }
 

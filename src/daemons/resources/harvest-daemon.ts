@@ -11,6 +11,7 @@ import { Mem, MemCacheObject } from "memory/Memory";
 import { log } from "utils/log";
 import { findClosestByLimitedRange } from "utils/util-pos";
 import { HaulerStat } from "../civilian/hauler-daemon";
+import { Settings } from "settings";
 
 export class HarvestDaemon extends Daemon {
 
@@ -38,7 +39,7 @@ export class HarvestDaemon extends Daemon {
   }
 
   get inputRate(): number {
-    return this.memory.inputRate;
+    return this.memory.inputRate ?? 0;
   }
 
   get eta(): number {
@@ -90,12 +91,12 @@ export class HarvestDaemon extends Daemon {
     if (!roomReachable) {
       log.warning(`${this.print} Room unreachable`);
       this.memory.inputRate = 0;
+      this.resourceFlowStats.pushInput(RESOURCE_ENERGY, 0);
       return;
     }
 
-    this.memory.inputRate = _.sum(this.agents.map(agent => countValidBodyPart(agent.creep, WORK))) * 2;
-    // const workPerHarvester = countBodyPart(bodyParts, WORK);
-    //this.memory.inputRate = workPerHarvester * 2;
+    const resourceInputRate = _.sum(this.agents.map(agent => countValidBodyPart(agent.creep, WORK))) * 2;
+    this.memory.inputRate = resourceInputRate;
 
     const haveEnnemy = this.haveEnnemy();
 
@@ -103,8 +104,19 @@ export class HarvestDaemon extends Daemon {
 
     if (!haveEnnemy && (!containerFull || this.initializer.link)) {
       this.spawnHandler();
+      this.resourceFlowStats.pushInput(RESOURCE_ENERGY, resourceInputRate);
     } else {
       this.memory.inputRate = 0;
+    }
+
+    if (this.initializer.container && this.hub.storage) {
+      // Vacuum container
+      for (const resource in this.initializer.container.store) {
+        if (this.hub.storage.store.getUsedCapacity(resource as ResourceConstant) < Settings.hubStorageMaxResource) {
+          this.hub.logisticsNetwork.requestOutput(this.initializer.container, resource as ResourceConstant);
+          this.hub.logisticsNetwork.requestInput(this.hub.storage, resource as ResourceConstant);
+        }
+      }
     }
 
     if (this.initializer.link) {

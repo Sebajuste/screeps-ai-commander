@@ -48,8 +48,8 @@ export class Dispatcher {
   }
 
   suspendDaemon(daemon: Daemon, ticks: number) {
+    this.memory.suspendUntil[daemon.ref] = Game.time + ticks;
     if (!this.isDaemonSuspended(daemon)) {
-      this.memory.suspendUntil[daemon.ref] = Game.time + ticks;
       log.info(`${this.hub.print} Suspend daemon ${daemon.name} for ${ticks} ticks`)
     }
   }
@@ -60,7 +60,7 @@ export class Dispatcher {
   }
 
   isDaemonSuspended(daemon: Daemon) {
-    if (this.memory.suspendUntil[daemon.ref]) {
+    if (daemon && this.memory.suspendUntil[daemon.ref]) {
       if (Game.time > this.memory.suspendUntil[daemon.ref]) {
         this.activeDaemon(daemon);
         return false;

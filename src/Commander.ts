@@ -11,6 +11,8 @@ import { createDirective } from "directives/directive-builder";
 import { createHubFlags } from "room/room-analyse";
 import { PROCESS_PRIORITY_HIGHT, PROCESS_PRIORITY_LOW, pushProcess } from "cpu/process";
 import { Scheduler } from "cpu/scheduler";
+import { analyseNextHub } from "intelligence/hub-expand";
+import { getRoomRange } from "utils/util-pos";
 
 
 export class Commander {
@@ -161,27 +163,20 @@ export class Commander {
       return hub.runLevel = RunLevel.BOOST;
     }
 
-    if (hub.storage) {
-      const energyAmount = hub.storage.store.getUsedCapacity(RESOURCE_ENERGY);
-      if (energyAmount > 100000) {
-        hub.runLevel = RunLevel.STANDBY;
-      } else if (energyAmount > 50000) {
-        hub.runLevel = RunLevel.LIMITED;
-      } else if (energyAmount > 10000) {
-        hub.runLevel = RunLevel.NORMAL;
-      } else if (energyAmount < 2000) {
-        hub.runLevel = RunLevel.MINIMAL;
-      } else {
-        hub.runLevel = RunLevel.NORMAL;
-      }
+    if (!hub.storage || !hub.towers || hub.towers.length == 0) {
+      return hub.runLevel = RunLevel.NORMAL;
+    }
 
-
-
+    const energyAmount = hub.storage.store.getUsedCapacity(RESOURCE_ENERGY);
+    if (energyAmount > 100000 && hub.level == 8) {
+      hub.runLevel = RunLevel.MINIMAL;
+    } else if (energyAmount > 100000) {
+      hub.runLevel = RunLevel.MINIMAL_UP;
     } else {
       hub.runLevel = RunLevel.NORMAL;
     }
 
-
+    return hub.runLevel;
   }
 
   build() {
@@ -193,7 +188,6 @@ export class Commander {
   refresh() {
     this.registerHubs();
     this.registerDirectives();
-    // this.registerNewAgents();
     this.registerAgents();
 
     _.forEach(this.hubs, hub => {
@@ -208,6 +202,22 @@ export class Commander {
   init() {
 
     _.forEach(this.hubs, hub => pushProcess(hub.processStack, () => hub.init(), PROCESS_PRIORITY_HIGHT + 10));
+
+    if (Game.time % 500) {
+      const minHubLevel = _.min(_.map(this.hubs, hub => hub.level)) ?? 10;
+      if (minHubLevel > 5) {
+        const nextRoom = analyseNextHub(this.hubs, this.hubMap);
+        if (nextRoom) {
+          const startHub = _.first(_.orderBy(this.hubs, hub => getRoomRange(hub.pos.roomName, nextRoom), ['asc']));
+          if (startHub) {
+
+            // TODO : create directive
+
+          }
+        }
+      }
+
+    }
 
   }
 

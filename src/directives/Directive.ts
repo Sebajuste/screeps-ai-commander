@@ -2,7 +2,7 @@ import _ from "lodash";
 
 import { Commander } from "Commander";
 import { Hub, RunActivity } from "hub/Hub";
-import { Actor } from "Actor";
+import { Actor, ResourceFlowStats } from "Actor";
 import { Coord } from "utils/coord";
 import { log } from "utils/log";
 import { Daemon } from "daemons/daemon";
@@ -22,7 +22,7 @@ export abstract class Directive implements Actor {
     commander: Commander;
     flag: Flag;
     daemons: { [name: string]: Daemon };	    // Daemons
-
+    resourceFlowStats: ResourceFlowStats;
 
 
     constructor(commander: Commander, flag: Flag, hub: Hub, includePos = false) {
@@ -38,6 +38,7 @@ export abstract class Directive implements Actor {
         this.memory = flag.memory;
         this.daemons = {};
         this.performanceReport = {};
+        this.resourceFlowStats = new ResourceFlowStats();
 
         if (!this.room) {
             throw new Error(`Invalid flag room for $${flag.name}`);
@@ -112,6 +113,7 @@ export abstract class Directive implements Actor {
         }
         this.memory = this.flag.memory;
         this.pos = flag.pos;
+        this.resourceFlowStats.clear();
     }
 
     abstract spawnDaemons(): void;

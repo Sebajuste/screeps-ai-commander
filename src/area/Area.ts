@@ -1,4 +1,4 @@
-import { Actor } from "Actor";
+import { Actor, ResourceFlowStats } from "Actor";
 import { Daemon } from "daemons/daemon";
 import { Hub, RunActivity } from "hub/Hub";
 import _ from "lodash";
@@ -11,9 +11,11 @@ export abstract class Area implements Actor {
   pos: RoomPosition;
   memory: any;
 
+
   daemons: { [name: string]: Daemon };
 
   performanceReport: { [stat: string]: number };
+  resourceFlowStats: ResourceFlowStats;
 
   constructor(hub: Hub, instantiationObject: RoomObject, name: string, includePos = false) {
     this.name = name;
@@ -22,6 +24,7 @@ export abstract class Area implements Actor {
     this.room = instantiationObject.room!;
     this.pos = instantiationObject.pos;
     this.daemons = {};
+    this.resourceFlowStats = new ResourceFlowStats();
 
     this.performanceReport = {};
   }
@@ -38,7 +41,7 @@ export abstract class Area implements Actor {
   }
 
   refresh() {
-
+    this.resourceFlowStats.clear();
   }
 
   abstract init(): void;

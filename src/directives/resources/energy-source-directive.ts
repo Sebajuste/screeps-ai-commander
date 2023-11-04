@@ -5,6 +5,7 @@ import { Hub } from "hub/Hub";
 import _ from "lodash";
 import { Mem, MemCacheObject } from "memory/Memory";
 import { deserializePos, serializePos } from "task/task-initializer";
+import { Coord, coordFromName, findNearValidPos, isEqualCoord } from "utils/coord";
 import { log } from "utils/log";
 import { linksMax } from "utils/rcl-tool";
 import { findClosestByLimitedRange } from "utils/util-pos";
@@ -19,6 +20,8 @@ interface EnergySourceMemory {
   // link?: Id<_HasId>;
   // constructionSite?: Id<_HasId>;
 }
+
+
 
 
 export class EnergySourceDirective extends Directive {
@@ -51,29 +54,7 @@ export class EnergySourceDirective extends Directive {
     this._linkCache = new MemCacheObject<StructureLink>(this.memory, 'link');
     this._constructionSiteCache = new MemCacheObject(this.memory, 'construction_site');
 
-    let path = null;
-
-    if (!this.memory.containerPos || !this.memory.containerPos) {
-      path = this.pos.findPathTo(this.hub.pos, { ignoreCreeps: true });
-    }
-
-    if (!this.memory.containerPos && path) {
-      const step = path[0];
-      this.memory.containerPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
-    }
-
-    this.isOutpost = this.pos.roomName != this.hub.pos.roomName;
-
-    if (!this.memory.linkPos && path && !this.isOutpost) {
-      const stepIndex = Math.min(1, path.length);
-      const step = path[stepIndex];
-      this.memory.linkPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
-    }
-
-    this.containerPos = deserializePos(this.memory.containerPos!);
-    if (!this.isOutpost) {
-      this.linkPos = deserializePos(this.memory.linkPos!);
-    }
+    this.defineStructurePosition();
   }
 
   get container(): StructureContainer | null {
@@ -82,6 +63,62 @@ export class EnergySourceDirective extends Directive {
 
   get link(): StructureLink | null {
     return this._linkCache.value;
+  }
+
+  private defineStructurePosition() {
+    let path = null;
+
+    log.debug(`defineStructurePosition ${this.pos}`);
+
+    if (!this.memory.containerPos || !this.memory.linkPos) {
+      path = this.pos.findPathTo(this.hub.pos, { ignoreCreeps: true });
+    }
+
+    if (path) {
+      log.debug(`> path[0]: ${path[0].x},${path[0].y}; path[1]: ${path[1].x},${path[1].y}; `)
+    }
+    if (!this.memory.containerPos && path) {
+      const step = path[0];
+
+      if (step.x == 1 || step.y == 1 || step.x == 48 || step.y == 48) {
+
+        const coord = findNearValidPos({ x: step.x, y: step.y }, this.pos.roomName);
+        if (coord) {
+          this.memory.containerPos = serializePos(new RoomPosition(coord.x, coord.y, this.pos.roomName));
+        }
+
+      } else {
+        this.memory.containerPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
+      }
+
+    }
+
+    this.containerPos = deserializePos(this.memory.containerPos!);
+
+    this.isOutpost = this.pos.roomName != this.hub.pos.roomName;
+
+    log.debug(`${this.print} constructor this.memory.linkPos: ${this.memory.linkPos}, path: ${path}, this.isOutpost: ${this.isOutpost}`)
+
+    if (!this.memory.linkPos && path && !this.isOutpost) {
+      log.debug(`${this.print} Define link pos`)
+      const stepIndex = Math.min(1, path.length);
+      const step = path[stepIndex];
+      if (step.x == 1 || step.y == 1 || step.x == 48 || step.y == 48) {
+        log.debug(`${this.print} Oups ! Invalid step`);
+        const coord = findNearValidPos({ x: this.containerPos.x, y: this.containerPos.y }, this.pos.roomName);
+        log.debug(`> new coord : ${JSON.stringify(coord)}`);
+        if (coord) {
+          this.memory.linkPos = serializePos(new RoomPosition(coord.x, coord.y, this.pos.roomName));
+        }
+      } else {
+        this.memory.linkPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
+      }
+    }
+
+
+    if (!this.isOutpost && this.memory.linkPos) {
+      this.linkPos = deserializePos(this.memory.linkPos);
+    }
   }
 
   spawnDaemons(): void {
@@ -115,7 +152,7 @@ export class EnergySourceDirective extends Directive {
       return;
     }
 
-    if (!this._containerCache.value && !this._constructionSiteCache.value) {
+    if (!this._containerCache.value && !this._constructionSiteCache.value && !this.hub.dispatcher.isDaemonSuspended(this.daemons.harvest)) {
       // Create Container if required
       const r = this.containerPos.createConstructionSite(STRUCTURE_CONTAINER);
       if (r != OK) {
@@ -123,11 +160,13 @@ export class EnergySourceDirective extends Directive {
       }
     }
 
-    if (!this.isOutpost && !this._linkCache.value && !this._constructionSiteCache.value && this.hub.links.length >= 1 && this.hub.links.length < linksMax(this.hub.level)) {
+    log.debug(`${this.print} Link required :${linksMax(this.hub.level)}, this.isOutpost: ${this.isOutpost}, this._linkCache.value: ${this._linkCache.value}`)
+
+    if (this.linkPos && !this.isOutpost && !this._linkCache.value && !this._constructionSiteCache.value && this.hub.links.length >= 1 && this.hub.links.length < linksMax(this.hub.level)) {
       // Create Link if required
       const r = this.linkPos.createConstructionSite(STRUCTURE_LINK);
       if (r != OK) {
-        log.warning(`${this.print} cannot create construction site ${r}`);
+        log.warning(`${this.print} cannot create construction site ${r} at ${this.linkPos}`);
       }
     }
 
@@ -170,14 +209,6 @@ export class EnergySourceDirective extends Directive {
 
     if (!Game.rooms[this.pos.roomName]) {
       // Room unreachable
-      return;
-    }
-
-    if (this.container) {
-      if (this.container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-        // Output the energy into container
-        this.hub.logisticsNetwork.requestOutput(this.container, RESOURCE_ENERGY);
-      }
       return;
     }
 

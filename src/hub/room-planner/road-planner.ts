@@ -61,7 +61,7 @@ export class RoadPlanner {
     return this.memory.roadCoverage;
   }
 
-  private generateRoadPlanningCostMatrix(roomName: string, obstacles: RoomPosition[], lowCostPosition: RoomPosition[]) {
+  private generateRoadPlanningCostMatrix(roomName: string, obstacles: RoomPosition[], lowCostPosition: RoomPosition[]): CostMatrix {
 
     const matrix = new PathFinder.CostMatrix();
     const terrain = Game.map.getRoomTerrain(roomName);
@@ -130,7 +130,11 @@ export class RoadPlanner {
 
     const lowCostPositions = _.concat(roadPositions, constructonRoadPositions);
 
-    this.roadPositions = _.uniqWith(_.flatten(_.map(destinations, destination => this.generateRoadsPath(origin, destination.pos, obstacles, lowCostPositions))), isEqualRoomPosition);
+    this.roadPositions = _.chain(destinations)//
+      .map(destination => this.generateRoadsPath(origin, destination.pos, obstacles, lowCostPositions))//
+      .flatten()//
+      .uniqWith(isEqualRoomPosition)//
+      .value();
 
   }
 

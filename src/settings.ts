@@ -26,8 +26,10 @@ export const Settings = {
   hubStorageMaxEnergy: 200000,
   hubStorageMaxResource: 50000,
 
-  hubCenterMinLinkEnergy: 400,
+  hubCenterMinLinkEnergy: 300,
   hubTerminalEnergy: 5000,
+
+  upgradeMinLinkEnergy: 500,
 
   Username: _.first(_.filter(_.values(Game.structures), (structure: any) => structure['owner'] != undefined) as any[]).owner.username
 
