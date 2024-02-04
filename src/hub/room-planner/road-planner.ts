@@ -160,6 +160,19 @@ export class RoadPlanner {
 
   }
 
+  findPath(from: RoomPosition, to: RoomPosition): PathStep[] {
+    return from.findPathTo(to, {
+      ignoreCreeps: true,
+      costCallback: (roomName, costMatrix) => {
+        if (roomName == this.hub.room.name) {
+          this.roadPositions.forEach(roadPos => {
+            costMatrix.set(roadPos.x, roadPos.y, 0);
+          });
+        }
+      }
+    })
+  }
+
   refresh(): void {
     this.memory = Mem.wrap(this.hub.memory, 'roadPlanner', MEMORY_DEFAULT);
     this.costMatrices = {};

@@ -4,13 +4,14 @@ import { selectBodyParts } from "agent/agent-builder";
 import { AGENT_PRIORITIES, BUIDER_TEMPLATE } from "agent/agent-setup";
 import { BuilderRole, RepairRole } from "agent/roles/roles";
 import { Daemon } from "daemons/daemon";
-import { Hub, RunActivity } from "hub/Hub";
+import { Hub, RunActivity, RunLevel } from "hub/Hub";
 import { BuildPriorities } from "hub/room-planner/room-priorities-structures";
 import _ from "lodash";
 import { Mem, MemCacheObject } from "memory/Memory";
 import { log } from "utils/log";
 import { findClosestByLimitedRange, getMultiRoomRange } from "utils/util-pos";
 
+export const DAEMON_BUILD_NAME = 'build';
 
 interface BuildMemory {
   bestConstruction?: Id<_HasId>
@@ -26,7 +27,7 @@ export class BuildDaemon extends Daemon {
   private repairCache: MemCacheObject<Structure>;
 
   constructor(hub: Hub, initializer: Actor) {
-    super(hub, initializer, 'build', RunActivity.Build);
+    super(hub, initializer, DAEMON_BUILD_NAME, RunActivity.Build);
     this.initializer = initializer;
     this.memory = Mem.wrap(initializer.memory, 'build_daemon', {});
 
@@ -44,7 +45,8 @@ export class BuildDaemon extends Daemon {
 
   private spawnBuilderHandler() {
 
-    if (this.hub.constructionSites.length == 0) {
+    const constructionSites = this.hub.runLevel & RunActivity.Outpost ? this.hub.constructionSites : this.hub.constructionSitesByRooms[this.hub.name];
+    if (constructionSites.length == 0) {
       // No structure to build
       return;
     }
@@ -72,7 +74,7 @@ export class BuildDaemon extends Daemon {
     }
 
     const options: AgentRequestOptions = {
-      priority: AGENT_PRIORITIES.builder
+      priority: AGENT_PRIORITIES.repairer
     };
 
     const bodyParts = selectBodyParts(BUIDER_TEMPLATE, this.hub.room.energyAvailable);
@@ -146,7 +148,11 @@ export class BuildDaemon extends Daemon {
     /**
      * Handle resources
      */
-    if (this.constructionSite && (this.agentsByRole['builder'] ?? []).length > 0 && this.hub.level < 4) {
+    const builderCount = (this.agentsByRole['builder'] ?? []).length;
+    const roomEnergyPercent = this.hub.room.energyAvailable / this.hub.room.energyCapacityAvailable;
+
+    if (this.constructionSite && builderCount > 0 && this.hub.level < 4 && roomEnergyPercent > 0.8) {
+      // Request drop energy if builder are present, room level is low, and enough energy is available for factory
 
       const drops = _.filter(this.hub.dropsByRooms[this.pos.roomName] ?? [], drop => drop.resourceType == RESOURCE_ENERGY && Game.rooms[drop.pos.roomName] != undefined);
       const drop = findClosestByLimitedRange(this.constructionSite.pos, drops, 5);

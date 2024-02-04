@@ -90,6 +90,10 @@ export class AgentFactoryArea extends Area {
     this.populateStructure();
   }
 
+  spawning() {
+    return this.spawns.length != this.availableSpawns.length;
+  }
+
   generateProtoCreep(setup: AgentSetup, daemon: Daemon, memory?: any): ProtoCreep {
     // Generate the creep body
     // let creepBody: BodyPartConstant[];
@@ -196,6 +200,8 @@ export class AgentFactoryArea extends Area {
   }
 
   private handleEnergyRequests(): void {
+
+    console.log('AGENT FACTORY ENEGY REQUEST')
 
     const refillSpawns = _.filter(this.spawns, spawn => spawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
 

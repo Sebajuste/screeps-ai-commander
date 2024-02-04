@@ -55,20 +55,28 @@ export class SupplyDaemon extends Daemon {
   private populateStructure() {
 
     if (!this.sources) {
+      // Refresh sources
 
       if (this.hub.storage) {
         this.sources = [this.hub.storage];
       } else {
         this.sources = _.filter(this.hub.containers, container => container.pos.roomName == this.pos.roomName && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0);
       }
-
     }
 
-    if (!this.destinations || this.destinations.length == 0) {
+    // if (!this.destinations || this.destinations.length == 0)
+    {
       // Reload destination list if empty or not init
 
-      const towerNotHubCenter = this.hub.towers.filter(tower => !this.hub.areas.hubCenter || !this.hub.areas.hubCenter.daemons.router || !this.hub.areas.hubCenter.towers.includes(tower));
-      // this.destinations = _.compact([...this.hub.extentions, ...this.hub.spawns, ...this.hub.labs, ...towerNotHubCenter]) as StoreStructure[];
+      let towerNotHubCenter: StructureTower[] = [];
+      if (this.hub.areas.hubCenter && this.hub.areas.hubCenter.daemons.router) {
+        const hubCenter = this.hub.areas.hubCenter;
+        towerNotHubCenter = this.hub.towers.filter(tower => !hubCenter.towers.includes(tower));
+      } else {
+        towerNotHubCenter = this.hub.towers;
+      }
+
+      // const towerNotHubCenter = this.hub.towers.filter(tower => !this.hub.areas.hubCenter || !this.hub.areas.hubCenter.daemons.router || !this.hub.areas.hubCenter.towers.includes(tower));
 
       this.destinations = _.chain([...this.hub.extentions, ...this.hub.spawns, ...this.hub.labs, ...towerNotHubCenter])//
         .compact()//
@@ -77,19 +85,6 @@ export class SupplyDaemon extends Daemon {
 
       this._energyFull = this.destinations.length == 0;
 
-
-      /*
-      this.destinations = _.filter(this.hub.structures, (structure: any) => {
-        const isHubCenterManaged = this.hub.areas.hubCenter && this.hub.areas.hubCenter.daemons.router && this.hub.areas.hubCenter.towers.includes(structure)
-
-        return (structure.structureType == STRUCTURE_EXTENSION ||
-          structure.structureType == STRUCTURE_SPAWN ||
-          structure.structureType == STRUCTURE_LAB ||
-          structure.structureType == STRUCTURE_TOWER) &&
-          !isHubCenterManaged &&
-          structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0;
-      }) as StoreStructure[];
-      */
     }
   }
 
@@ -109,25 +104,47 @@ export class SupplyDaemon extends Daemon {
       return;
     }
 
-    if (this._energyFull && this.hub.spawns.find(spawn => spawn.spawning) != undefined) {
+
+    if (this._energyFull && this.hub.areas.agentFactory?.spawning) {
       // TODO : check labs and towers
       this._energyFull = false;
     }
 
-    this.spawnSuppliers();
+    if (!this._energyFull) {
+      this.spawnSuppliers();
+    }
 
-    if (storage) {
+    /**
+     * Input request for storage
+     */
+
+
+
+    if (storage && this.hub.areas.agentFactory && this.hub.areas.agentFactory.daemons.hauler && this.hub.areas.agentFactory.daemons.hauler.ready) {
+      // Request logistics only if hauler are available
+
       if (storage.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubStorageMaxEnergy && !this.hub.logisticsNetwork.haveRequest(storage, RESOURCE_ENERGY)) {
-        this.hub.logisticsNetwork.requestInput(storage, RESOURCE_ENERGY, Settings.hubStorageMaxEnergy);
+        // If max energy intot he storage is not reach AND not request (input or output) is already done
+
+        const upgradeDaemon = this.hub.areas.upgrade?.daemons.upgrade;
+
+        if (!upgradeDaemon || (upgradeDaemon.store && upgradeDaemon.store.getUsedCapacity(RESOURCE_ENERGY) > upgradeDaemon.store.getCapacity(RESOURCE_ENERGY) / 2)) {
+          // Request energy only if no upgrade is available, or id upgrade as enought energy
+          this.hub.logisticsNetwork.requestInput(storage, RESOURCE_ENERGY, Settings.hubStorageMaxEnergy);
+        }
+
+
       }
 
+
       for (const resource of RESOURCE_IMPORTANCE) {
-        if (storage.store.getUsedCapacity(resource) < Settings.hubStorageMaxEnergy && !this.hub.logisticsNetwork.haveRequest(storage, resource)) {
+        if (storage.store.getUsedCapacity(resource) < Settings.hubStorageMaxEnergy) {
           this.hub.logisticsNetwork.requestInput(storage, resource, Settings.hubStorageMaxEnergy);
         }
       }
 
     }
+
 
   }
 

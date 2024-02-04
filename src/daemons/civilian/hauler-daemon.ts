@@ -12,6 +12,8 @@ import { Mem } from "memory/Memory";
 import { log } from "utils/log";
 import { MathRange } from "utils/math";
 
+const HAULER_DAEMON_PRIORITY = 50;
+
 
 export interface HaulerStat {
   inputRate: number;
@@ -28,8 +30,8 @@ export class HaulerDaemon extends Daemon {
   _haulerRequire?: number;
   _haulerRequireTTL: number;
 
-  constructor(hub: Hub, initializer: Actor, priority?: number, maxQuantity: number = 1) {
-    super(hub, initializer, 'hauler', RunActivity.LocalHarvest, priority);
+  constructor(hub: Hub, initializer: Actor, maxQuantity: number = 1) {
+    super(hub, initializer, 'hauler', RunActivity.LocalHarvest, HAULER_DAEMON_PRIORITY);
     this.initializer = initializer;
     this.maxQuantity = maxQuantity;
     this.memory = Mem.wrap(initializer.memory, 'haulerStat', { eta: 0, inputRate: 0 });
@@ -37,9 +39,14 @@ export class HaulerDaemon extends Daemon {
     this._haulerRequireTTL = Game.time;
   }
 
+  get ready(): boolean {
+    return this.hub.logisticsNetwork.inputRequest() == 0 || this.hub.logisticsNetwork.outputRequest() == 0 ? false : this.agents.length > 0;
+  }
+
   private spawnHandler() {
 
     if (this.hub.logisticsNetwork.inputRequest() == 0 || this.hub.logisticsNetwork.outputRequest() == 0) {
+      log.warning(`${this.print} No requist to spawn haulers`);
       return;
     }
 
@@ -48,9 +55,15 @@ export class HaulerDaemon extends Daemon {
     if (!this._haulerRequire || this._haulerRequireTTL <= Game.time) {
       // Compute number of hauler required
 
+      this.hub.dispatcher.directives.filter(directive => Directive.isDirective(directive.flag, 'harvest')).forEach(directive => {
+        if (!directive.daemons.harvest) {
+          log.error(`${directive.print} does not have harvest daemon`)
+        }
+      });
+
       const totalResourcesToTransport = _.chain(this.hub.dispatcher.directives)//
         .filter(directive => Directive.isDirective(directive.flag, 'harvest') && !(directive as EnergySourceDirective).link && !this.hub.dispatcher.isDaemonSuspended((directive as EnergySourceDirective).daemons.harvest))//
-        .map((directive: EnergySourceDirective) => directive.daemons.harvest.inputRate * directive.daemons.harvest.eta * 2.0)//
+        .map((directive: EnergySourceDirective) => directive.daemons.harvest ? directive.daemons.harvest.inputRate * directive.daemons.harvest.eta * 2.0 : 100.0)//
         .sum()//
         .value();
 
@@ -89,13 +102,16 @@ export class HaulerDaemon extends Daemon {
       log.warning(`${this.print} room not reachable`)
     }
 
-    if (this.maxQuantity > 0) {
-      this.spawnHandler();
-    }
+    this.spawnHandler();
 
   }
 
   run(): void {
+
+    if (!this.ready) {
+      // No logistic request or hauler ready
+      return;
+    }
 
     this.autoRun(this.agents, agent => HaulerRole.pipeline(this.hub, agent, this.hub.logisticsNetwork.getLogisticsRequest(agent)));
 

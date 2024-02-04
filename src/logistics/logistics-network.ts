@@ -1,4 +1,3 @@
-
 import _ from "lodash";
 import { Agent } from "agent/Agent";
 import { HaulerRole } from "agent/roles/roles";
@@ -20,30 +19,10 @@ export type LogisticsTarget =
   | Tombstone
   | Resource<ResourceConstant>;
 
-/*
-type HaulerCache = {
-[transporterName: string]: {
-  nextAvailability: [number, RoomPosition],
-  predictedTransporterCarry: StoreDefinition,
-  tick: number,
-}
-};
-*/
-
 interface LogisticsNetworkCache {
   nextAvailabilities: { [haulerName: string]: [number, RoomPosition] },
   resourceChangeRate: { [requestID: string]: { [haulerName: string]: number } },
 }
-
-/*
-interface LogisticsNetworkMemory {
-  haulers: HaulerCache;
-}
-
-const DEFAULT: LogisticsNetworkMemory = {
-  haulers: {},
-};
-*/
 
 export interface LogisticsRequest {
   id: string;
@@ -60,7 +39,7 @@ type Match = { [hauler: string]: LogisticsRequest };
 export class LogisticsNetwork {
 
   static Settings = {
-    minimumTickInterval: 5
+    minimumTickInterval: 1 // 5
   };
 
   hub: Hub;
@@ -76,17 +55,15 @@ export class LogisticsNetwork {
 
   static settings = {
     flagDropAmount: 1000,
-    rangeToPathHeuristic: 1.1, 	// findClosestByRange * this ~= findClosestByPos except in pathological cases
-    carryThreshold: 800, 	// only do stable matching on transporters at least this big (RCL4+)
+    rangeToPathHeuristic: 1.1, 	  // findClosestByRange * this ~= findClosestByPos except in pathological cases
+    carryThreshold: 800, 	        // only do stable matching on transporters at least this big (RCL4+)
     droppedEnergyThreshold: 200,	// ignore dropped energy below this amount
   };
 
   constructor(hub: Hub) {
     this.hub = hub;
-    // this.memory = Mem.wrap(colony.memory, 'logistics', DEFAULT);
 
     this.requests = [];
-    // this._match = {};
     this._nextProcessTick = Game.time;
 
     this.cache = {
@@ -150,10 +127,12 @@ export class LogisticsNetwork {
   private requestHaulerScore(request: LogisticsRequest, hauler: Agent): number {
 
     if (!this.cache.resourceChangeRate[request.id]) {
+      // Init cache for the request
       this.cache.resourceChangeRate[request.id] = {};
     }
 
     if (!this.cache.resourceChangeRate[request.id][hauler.name]) {
+      // Update cache for the [request / hauler] couple
 
       const [ticksUntilFree, newPos] = this.nextAvailability(hauler);
 
@@ -162,18 +141,18 @@ export class LogisticsNetwork {
       const isTake = request.amount < 0;
 
       // Take value OR put value
-      const carry = isTake ? (hauler.store.getFreeCapacity(request.resourceType) ?? 0) : (hauler.store.getUsedCapacity(request.resourceType) ?? 0);
+      const carryAmount = isTake ? (hauler.store.getFreeCapacity(request.resourceType) ?? 0) : (hauler.store.getUsedCapacity(request.resourceType) ?? 0);
 
       try {
         const distance = Math.max(1.0, ticksUntilFree + getMultiRoomRange(newPos, request.target.pos) * LogisticsNetwork.settings.rangeToPathHeuristic);
 
-        const dq = Math.min(amount, carry);
+        const dq = Math.min(amount, carryAmount);
         const dt = 1.0 / distance;
 
         this.cache.resourceChangeRate[request.id][hauler.name] = dq * dt;
 
       } catch (err) {
-        log.error(`${this.hub.print} newPos: ${newPos}, request.target.pos: ${request.target.pos}, hauler.task?.targetPos: ${Object.keys(hauler.taskPipelineHandler.pipeline[0]?.target ?? {})}`)
+        log.error(`${this.hub.print} newPos: ${newPos}, request.target: ${request.target}, hauler.task?.targetPos: ${Object.keys(hauler.taskPipelineHandler.pipeline[0]?.target ?? {})}`)
         log.error((err as any)['stack'])
         return 0;
       }
@@ -294,20 +273,30 @@ export class LogisticsNetwork {
   }
 
   inputRequest(): number {
-    return _.fill(this.requests, (req: LogisticsRequest) => req.amount > 0).length;
+    return _.filter(this.requests, (req: LogisticsRequest) => req.amount > 0).length;
   }
 
   outputRequest(): number {
-    return _.fill(this.requests, (req: LogisticsRequest) => req.amount < 0).length;
+    return _.filter(this.requests, (req: LogisticsRequest) => req.amount < 0).length;
   }
 
   haveRequest(target: LogisticsTarget, resourceType: ResourceConstant = RESOURCE_ENERGY): boolean {
 
-    return this.requests.find(req => (req.target.id == target.id || req.target.pos.isEqualTo(target.pos)) && req.resourceType == resourceType) != undefined;
+    if (!target || (!target.id && !target.pos)) {
+      // Invalid request
+      log.warning(`Cannot define if request with [${resourceType}] is already defined for `, JSON.stringify(target))
+      return false;
+    }
+
+    return this.requests.find(req => (req.target.id! == target.id! || req.target.pos.isEqualTo(target.pos)) && req.resourceType == resourceType) != undefined;
 
   }
 
   requestDrop(pos: RoomPosition, resourceType: ResourceConstant = RESOURCE_ENERGY, amount: number = 1000) {
+
+    if (!pos) {
+      log.warning(`${this.hub.print} Invalid Drop`);
+    }
 
     if (this.requests.find(req => (req.target.pos.isEqualTo(pos)) && req.resourceType == resourceType) != undefined) {
       log.warning(`${this.hub.print} Drop logistic already registered with resource ${resourceType} at ${pos}`);
@@ -329,7 +318,10 @@ export class LogisticsNetwork {
 
   requestInput(target: LogisticsTarget, resourceType: ResourceConstant = RESOURCE_ENERGY, amount?: number) {
 
-    // if (this.requests.find(req => req.target.id == target.id && req.resourceType == resourceType)) {
+    if (!target || !target.pos) {
+      log.warning(`${this.hub.print} Invalid Input Target`);
+    }
+
     if (this.haveRequest(target, resourceType)) {
       log.warning(`${this.hub.print} Input logistic already registered with resource ${resourceType} for target ${target} at ${target.pos}`);
       return;
@@ -346,6 +338,7 @@ export class LogisticsNetwork {
       this.requests.push(req);
       // log.debug(`${this.hub.print} logistic request input ${resourceType} for target ${target} at ${target.pos}`);
     }
+
   }
 
   requestOutput(target: LogisticsTarget, resourceType: ResourceConstant = RESOURCE_ENERGY, amount?: number) {

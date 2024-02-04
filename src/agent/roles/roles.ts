@@ -211,7 +211,7 @@ export class HarvestRole {
         if (container && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
           pipeline.push(Tasks.withdraw(container, RESOURCE_ENERGY));
         } else {
-          pipeline.push(Tasks.harvest(source));
+          pipeline.push(Tasks.harvest(source, link));
         }
 
       }
@@ -232,7 +232,7 @@ export class HarvestRole {
         if (container && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
           pipeline.push(Tasks.withdraw(container, RESOURCE_ENERGY));
         } else {
-          pipeline.push(Tasks.harvest(source));
+          pipeline.push(Tasks.harvest(source, container));
         }
 
       }
@@ -262,24 +262,26 @@ export class HarvestRole {
     //
     //
     //
-    if (container && agent.store.getFreeCapacity(RESOURCE_ENERGY) == 0 && (container.store.getFreeCapacity(RESOURCE_ENERGY) ?? 0) > 0) {
-      // Transfer to energy
-      pipeline.push(Tasks.transfer(container, RESOURCE_ENERGY));
-    }
-
     if (container && container.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+
+      if (agent.haveBodyPart(CARRY) && agent.store.getFreeCapacity(RESOURCE_ENERGY) == 0 && (container.store.getFreeCapacity(RESOURCE_ENERGY) ?? 0) > 0) {
+        // Transfer to energy
+        pipeline.push(Tasks.transfer(container, RESOURCE_ENERGY));
+      }
 
       pipeline.push(Tasks.harvest(source, container));
 
+      /*
       if (agent.haveBodyPart(CARRY)) {
         pipeline.push(Tasks.drop(agent.pos, RESOURCE_ENERGY));
       }
+      */
 
       return pipeline;
 
     }
 
-    pipeline.push(Tasks.harvest(source));
+    pipeline.push(Tasks.harvest(source, container));
 
     return pipeline;
   }

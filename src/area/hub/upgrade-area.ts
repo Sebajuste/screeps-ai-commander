@@ -42,7 +42,7 @@ export class UpgradeArea extends Area {
     let steps = null;
 
     if (!this.memory.containerPos || !this.memory.containerPos) {
-      steps = this.pos.findPathTo(this.hub.pos, { ignoreCreeps: true });
+      steps = this.hub.roomPlanner.roadPlanner.findPath(this.pos, this.hub.pos); // Using planned road to find object position
     }
 
     if (!this.memory.containerPos && steps) {

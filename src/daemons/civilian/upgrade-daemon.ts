@@ -26,6 +26,18 @@ export class UpgradeDaemon extends Daemon {
     return this.upgradeArea.link;
   }
 
+  get store(): Store<RESOURCE_ENERGY, false> | null {
+
+    if (this.upgradeArea.link) {
+      return this.upgradeArea.link.store;
+    }
+    if (this.upgradeArea.container) {
+      return this.upgradeArea.container.store as Store<RESOURCE_ENERGY, false>;
+    }
+
+    return null;
+  }
+
   private spawnHandler() {
 
     const options: AgentRequestOptions = {

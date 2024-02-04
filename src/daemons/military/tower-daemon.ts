@@ -3,7 +3,7 @@ import { Agent } from "agent/Agent";
 import { countValidBodyPart, haveBodyPart } from "agent/agent-builder";
 import { CPU } from "cpu/CPU";
 import { PROCESS_PRIORITY_HIGHT, PROCESS_PRIORITY_LOW, PROCESS_PRIORITY_NORMAL, pushProcess } from "cpu/process";
-import { Daemon } from "daemons";
+import { DAEMON_BUILD_NAME, Daemon } from "daemons";
 import { Hub, RunActivity } from "hub/Hub";
 import { CombatIntelligence } from "intelligence/combat";
 import _ from "lodash";
@@ -211,16 +211,17 @@ export class TowerDaemon extends Daemon {
 
     }
 
+    if (this.hub.dispatcher.findActiveDaemonByName(DAEMON_BUILD_NAME) != undefined) {
+      // Tower will repair only if repairer are not available
 
-    const closestDamagedAlly = this.pos.findClosestByRange(_.filter(this.hub.agentByRoom[this.pos.roomName] ?? [], creep => creep.hits < creep.hitsMax));
-    if (closestDamagedAlly) {
-      this.heal(closestDamagedAlly.creep);
-      return;
+      const closestDamagedAlly = this.pos.findClosestByRange(_.filter(this.hub.agentByRoom[this.pos.roomName] ?? [], creep => creep.hits < creep.hitsMax));
+      if (closestDamagedAlly) {
+        this.heal(closestDamagedAlly.creep);
+        return;
+      }
+
+      this.repairNearestStructure();
     }
-
-    // this.hub.towers.forEach(tower => this.towerHandler(tower, this.closestHostile, this.agentInjured, this.structureDamaged));
-
-    this.repairNearestStructure();
   }
 
 }

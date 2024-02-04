@@ -8,6 +8,10 @@ export function lookForStructure(pos: RoomPosition, structureType: string): Stru
 
 }
 
+export function isSamePos(posA: RoomPosition, posB: RoomPosition): boolean {
+  return posA.roomName == posB.roomName && posA.x == posB.x && posA.y == posB.y;
+}
+
 export function findClosestByLimitedRange<T extends RoomObject>(pos: RoomPosition, objects: T[], range: number, options?: { filter: any | string; }): T | null {
   const inRange = pos.findInRange(objects, range, options);
   return pos.findClosestByRange(inRange, options);

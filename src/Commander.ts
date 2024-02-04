@@ -55,7 +55,12 @@ export class Commander {
     const agentsByHub = _.groupBy(agents, agent => agent.memory.hub);
     for (const hubName in agentsByHub) {
       const hub = this.hubs[hubName];
-      hub.agents = agentsByHub[hubName];
+      if (hub) {
+        hub.agents = agentsByHub[hubName];
+      } else {
+        log.error(`Invalid hub ${hubName} to register agents`);
+      }
+
     }
   }
 
@@ -95,12 +100,15 @@ export class Commander {
     // Initialize the Colonies and give each one a Supervisor
     let maxId = _.max(_.map(this.hubs, hub => hub.id)) ?? 1;
 
+    log.debug('maxId : ', maxId);
+    log.debug('hubOutposts : ', JSON.stringify(hubOutposts));
+    log.debug('this.hubs : ', JSON.stringify(_.keys(this.hubs)));
+
     const newHubs = _.filter(_.keys(hubOutposts), name => !this.hubs.hasOwnProperty(name));
 
     _.forEach(newHubs, name => {
       const hub = new Hub(maxId++, name, hubOutposts[name]);
       this.hubs[name] = hub;
-      // setRoomFlags(name, hub);
       createHubFlags(Game.rooms[name]);
     });
 
@@ -119,6 +127,7 @@ export class Commander {
         hub.dispatcher.registerDirective(directive);
         directive.registerDaemons();
       } else {
+        log.warning(`Cannot register directive for ${flag}`)
         // Directive.getFlagColony(Game.flags[name]).flags.push(Game.flags[name]);
       }
     } else {
@@ -159,7 +168,8 @@ export class Commander {
       return hub.runLevel = RunLevel.MINIMAL;
     }
 
-    if (hub.level < 4) {
+    if (hub.level <= 3 || (hub.level == 4 && hub.constructionSitesByRooms[hub.name].length > 0 && hub.storage && hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 50000)) {
+      // Boost mode until lvl 4, stop when all constructions are done
       return hub.runLevel = RunLevel.BOOST;
     }
 
@@ -168,9 +178,9 @@ export class Commander {
     }
 
     const energyAmount = hub.storage.store.getUsedCapacity(RESOURCE_ENERGY);
-    if (energyAmount > 100000 && hub.level == 8) {
+    if (energyAmount > 100000 && hub.level == 8 && hub.constructionSitesByRooms[hub.name].length == 0) {
       hub.runLevel = RunLevel.MINIMAL;
-    } else if (energyAmount > 100000) {
+    } else if (energyAmount > 100000 && hub.constructionSitesByRooms[hub.name].length == 0) {
       hub.runLevel = RunLevel.MINIMAL_UP;
     } else {
       hub.runLevel = RunLevel.NORMAL;

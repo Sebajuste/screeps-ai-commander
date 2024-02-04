@@ -18,3 +18,6 @@
 ## ======= Date 2023-10-30 =======
 > **main** Add Miner daemon
 > **main** CPU optimisation
+
+## ======= Date 2023-11-05 =======
+> **main** Link/Harvest optimisation

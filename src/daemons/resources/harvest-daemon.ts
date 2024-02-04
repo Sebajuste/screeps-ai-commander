@@ -39,11 +39,11 @@ export class HarvestDaemon extends Daemon {
   }
 
   get inputRate(): number {
-    return this.memory.inputRate ?? 0;
+    return this.memory.inputRate ?? 1;
   }
 
   get eta(): number {
-    return this.memory.eta;
+    return this.memory.eta ?? 1;
   }
 
   private spawnHandler() {
@@ -109,12 +109,17 @@ export class HarvestDaemon extends Daemon {
       this.memory.inputRate = 0;
     }
 
-    if (this.initializer.container && this.hub.storage) {
-      // Vacuum container
+    if (this.initializer.container) {
+      // Vacuum all resource container container
       for (const resource in this.initializer.container.store) {
-        if (this.hub.storage.store.getUsedCapacity(resource as ResourceConstant) < Settings.hubStorageMaxResource) {
-          this.hub.logisticsNetwork.requestOutput(this.initializer.container, resource as ResourceConstant);
-          this.hub.logisticsNetwork.requestInput(this.hub.storage, resource as ResourceConstant);
+        this.hub.logisticsNetwork.requestOutput(this.initializer.container, resource as ResourceConstant);
+
+        if (this.hub.storage) {
+          // Enable storage
+          const maxStorageAmount = resource == RESOURCE_ENERGY ? Settings.hubStorageMaxEnergy : Settings.hubStorageMaxResource;
+          if (this.hub.storage.store.getUsedCapacity(resource as ResourceConstant) < maxStorageAmount) {
+            this.hub.logisticsNetwork.requestInput(this.hub.storage, resource as ResourceConstant);
+          }
         }
       }
     }
@@ -138,7 +143,8 @@ export class HarvestDaemon extends Daemon {
     */
 
     // Output the energy droped
-    if (this.drop) {
+    if (this.drop && (!this.initializer.container || this.drop.amount > this.initializer.container.store.getUsedCapacity(RESOURCE_ENERGY))) {
+      console.log(`${this.print} request drop output`)
       this.hub.logisticsNetwork.requestOutput(this.drop, this.drop.resourceType);
     }
 

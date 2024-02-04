@@ -38,10 +38,10 @@ export class Dispatcher {
     this.memory = Mem.wrap(hub.memory, 'dispatcher', DEFAULT_MEMORY);
   }
 
-  get runableDaemons(): Daemon[] {
+  get runableSortedDaemons(): Daemon[] {
 
     if (!this._runableDaemons) {
-      this._runableDaemons = _.filter(this.daemons, daemon => !this.isDaemonSuspended(daemon));
+      this._runableDaemons = _.orderBy(_.filter(this.daemons, daemon => !this.isDaemonSuspended(daemon)), daemon => daemon.priority);
     }
     return this._runableDaemons;
 
@@ -68,6 +68,10 @@ export class Dispatcher {
       return true;
     }
     return false;
+  }
+
+  findActiveDaemonByName(name: string): Daemon | undefined {
+    return _.find(this.daemons, daemon => daemon.name === name && !this.isDaemonSuspended(daemon));
   }
 
   registerDaemon(daemon: Daemon) {
@@ -206,7 +210,7 @@ export class Dispatcher {
       directive.performanceReport['init'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
     }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset + 10));
 
-    this.runableDaemons.forEach(daemon => pushProcess(this.hub.processStack, () => {
+    this.runableSortedDaemons.forEach(daemon => pushProcess(this.hub.processStack, () => {
       const start = Game.cpu.getUsed();
       daemon.preInit();
       daemon.init();
@@ -223,7 +227,7 @@ export class Dispatcher {
       directive.performanceReport['run'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
     }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset + 20));
 
-    this.runableDaemons.forEach(daemon => pushProcess(this.hub.processStack, () => {
+    this.runableSortedDaemons.forEach(daemon => pushProcess(this.hub.processStack, () => {
       const start = Game.cpu.getUsed();
       daemon.run();
       const cpuCost = Game.cpu.getUsed() - start;

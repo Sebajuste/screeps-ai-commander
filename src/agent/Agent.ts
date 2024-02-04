@@ -8,6 +8,7 @@ import { printCreep } from "utils/creep-utils";
 import { OK_PIPELINE_READY, TaskPipeline, TaskPipelineHandler } from "task/task-pipeline";
 import { PROCESS_PRIORITY_LOW, pushProcess } from "cpu/process";
 import { Hub } from "hub/Hub";
+import { Settings } from "settings";
 
 
 export interface AgentSetup {
@@ -42,10 +43,13 @@ export class Agent {
 
   taskPipelineHandler: TaskPipelineHandler;
 
+  runCount: number;
+
   constructor(creep: Creep) {
     this.creep = creep;
     this.memory = this.creep.memory as AgentMemory;
     this.taskPipelineHandler = new TaskPipelineHandler(this.creep);
+    this.runCount = 0;
   }
 
   get lastRunTick(): number {
@@ -100,6 +104,30 @@ export class Agent {
     return `<a href="#!/room/${Game.shard.name}/${this.pos.roomName}">[${this.name}@${this.pos.roomName}, x:${this.pos.x},y${this.pos.y}:]</a>`;
   }
 
+  private internalRun(hub: Hub) {
+    this.lastRunTick = Game.time;
+
+    const result = this.taskPipelineHandler.run();
+
+    if (this.runCount++ >= Settings.creepMaxTaskRun) {
+      log.warning(`${this.print} too much run for this tick`);
+      return;
+    }
+
+    if (result == OK_PIPELINE_READY) {
+      // Other task should be run into the same tick
+      this.run(hub);
+      /*
+      pushProcess(hub.processStack, () => {
+        const start = Game.cpu.getUsed();
+        this.run(hub);
+        const timeElasped = Game.cpu.getUsed() - start;
+        hub.creepCPU += timeElasped;
+      }, PROCESS_PRIORITY_LOW);
+      */
+    }
+  }
+
   haveBodyPart(bodyPart: string) {
     for (const index in this.body) {
       const item = this.body[index];
@@ -111,23 +139,35 @@ export class Agent {
   }
 
   refresh() {
-    //this.creep = Game.creeps[this.creep.name];
-    //this.memory = this.creep.memory as AgentMemory;
-    // this.taskPipelineHandler.creep = this.creep;
     if (!this.taskPipelineHandler) {
       this.taskPipelineHandler = new TaskPipelineHandler(this.creep);
     }
+    this.runCount = 0;
   }
+
+
 
   run(hub: Hub) {
 
+    pushProcess(hub.processStack, () => {
+      const start = Game.cpu.getUsed();
+      this.internalRun(hub);
+      const timeElasped = Game.cpu.getUsed() - start;
+      hub.creepCPU += timeElasped;
+    }, PROCESS_PRIORITY_LOW);
+
+    /*
     this.lastRunTick = Game.time;
 
     const result = this.taskPipelineHandler.run();
 
+    if (this.runCount++ >= Settings.creepMaxTaskRun) {
+      log.warning(`${this.print} too much run for this tick`);
+      return;
+    }
+
     if (result == OK_PIPELINE_READY) {
       // Other task should be run into the same tick
-      // CPU.cpu().pushProcess(() => this.run(), PROCESS_PRIORITY_LOW);
       pushProcess(hub.processStack, () => {
         const start = Game.cpu.getUsed();
         this.run(hub);
@@ -135,6 +175,7 @@ export class Agent {
         hub.creepCPU += timeElasped;
       }, PROCESS_PRIORITY_LOW);
     }
+    */
 
   }
 

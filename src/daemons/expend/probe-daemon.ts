@@ -3,6 +3,7 @@ import { Exploration, ExploredRoom } from "Exploration";
 import { Agent, AgentRequestOptions, AgentSetup } from "agent/Agent";
 import { AGENT_PRIORITIES } from "agent/agent-setup";
 import { ScoutRole } from "agent/roles/roles";
+import { CPU } from "cpu/CPU";
 import { Daemon } from "daemons/daemon";
 import { Hub, RunActivity } from "hub/Hub";
 import _ from "lodash";
@@ -66,6 +67,11 @@ export class ProbeDaemon extends Daemon {
 
     const exploration = Exploration.exploration();
     const exploredRooms = exploration.getRooms();
+
+    if (Object.keys(exploredRooms).length == 0) {
+      // Init exploration
+      exploration.analyseRoom(this.room);
+    }
 
     this.nextRooms = _.chain(exploredRooms)//
       .map(room => room.exits)//
@@ -140,51 +146,56 @@ export class ProbeDaemon extends Daemon {
 
   private processOutpost() {
 
+    if (Game.time % Math.max(10, this.hub.id) == this.hub.id) {
+      // Each 10 ticks, or more if more colony exists
 
-    if (this.hub.memory.outposts.length > Settings.hubOutpostAmount) {
-      //  Clear errors
-      this.hub.memory.outposts = _.slice(_.uniq(this.hub.memory.outposts), 0, Settings.hubOutpostAmount);
-    }
 
-    const roomRequireAmount = Settings.hubOutpostAmount - this.hub.memory.outposts.length;
+      if (this.hub.memory.outposts.length > Settings.hubOutpostAmount) {
+        //  Clear errors
+        this.hub.memory.outposts = _.slice(_.uniq(this.hub.memory.outposts), 0, Settings.hubOutpostAmount);
+      }
 
-    log.debug(`${this.print} roomRequireAmount: ${roomRequireAmount}, Settings.hubOutpostAmount: ${Settings.hubOutpostAmount}, this.hub.outposts.length: ${this.hub.memory.outposts.length}`);
+      const roomRequireAmount = Settings.hubOutpostAmount - this.hub.memory.outposts.length;
 
-    if (roomRequireAmount > 0) {
-      // Find best outpost
+      log.debug(`${this.print} roomRequireAmount: ${roomRequireAmount}, Settings.hubOutpostAmount: ${Settings.hubOutpostAmount}, this.hub.outposts.length: ${this.hub.memory.outposts.length}`);
 
-      const exploration = Exploration.exploration();
+      if (roomRequireAmount > 0) {
+        // Find best outpost
 
-      const hubRoomInfo = exploration.getRoom(this.hub.room.name);
-      if (hubRoomInfo) {
+        const exploration = Exploration.exploration();
 
-        const outpostNames = _.map(this.hub.rooms, room => room.name);
+        const hubRoomInfo = exploration.getRoom(this.hub.room.name);
+        if (hubRoomInfo) {
 
-        const nearRooms = exploration.getNearRooms(this.hub.room.name, 2);
+          const outpostNames = _.map(this.hub.rooms, room => room.name);
 
-        log.debug(`> nearRooms: ${nearRooms.length}`);
+          const nearRooms = exploration.getNearRooms(this.hub.room.name, 2);
 
-        const bestRooms = _.chain(nearRooms)//
-          .filter(roomName => exploration.getRoom(roomName)?.haveEnnemy == false && !outpostNames.includes(roomName) && !exploration.isInvalid(roomName))// No ennemy and not already outpost
-          .sortBy(roomName => {
+          log.debug(`> nearRooms: ${nearRooms.length}`);
 
-            const distance = getRoomRange(this.hub.name, roomName); //Traveler.routeDistance(colony.name, roomName);
+          const bestRooms = _.chain(nearRooms)//
+            .filter(roomName => exploration.getRoom(roomName)?.haveEnnemy == false && !outpostNames.includes(roomName) && !exploration.isInvalid(roomName))// No ennemy and not already outpost
+            .sortBy(roomName => {
 
-            const sources = exploration.getRoom(roomName)?.sourceCount ?? 0;
-            const dt = 1.0 / distance;
+              const distance = getRoomRange(this.hub.name, roomName); //Traveler.routeDistance(colony.name, roomName);
 
-            return sources * dt;
+              const sources = exploration.getRoom(roomName)?.sourceCount ?? 0;
+              const dt = 1.0 / distance;
 
-          }, ['desc'])//
-          .slice(0, roomRequireAmount)//
-          .value();
+              return sources * dt;
 
-        log.debug(`> bestRooms: ${bestRooms.length} `);
+            }, ['desc'])//
+            .slice(0, roomRequireAmount)//
+            .value();
 
-        bestRooms.forEach(roomName => registerOutpost(this.hub, roomName));
+          log.debug(`> bestRooms: ${bestRooms.length} `);
 
-      } else {
-        log.error(`${this.print} No exploration data for hub ${this.hub.name}`);
+          bestRooms.forEach(roomName => registerOutpost(this.hub, roomName));
+
+        } else {
+          log.error(`${this.print} No exploration data for hub ${this.hub.name}`);
+        }
+
       }
 
     }

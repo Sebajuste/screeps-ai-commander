@@ -2,6 +2,7 @@ import _ from "lodash";
 import { log } from "./log";
 import { Traveler } from "libs/traveler/traveler";
 import { Coord } from "./coord";
+import { info } from "console";
 
 
 
@@ -41,6 +42,17 @@ export class Pathing {
     return { x: x, y: y } as Coord;
   }
 
+  static getRoomRange(from: string, to: string): number {
+    if (from === to) {
+      return 0;
+    }
+    const worldPosFrom = this.roomWorldCoords(from);
+    const worldPosTo = this.roomWorldCoords(to);
+    const dx = Math.abs(worldPosTo.x - worldPosFrom.x);
+    const dy = Math.abs(worldPosTo.y - worldPosFrom.y);
+    return Math.max(dx, dy);
+  }
+
   static distance(from: RoomPosition, to: RoomPosition) {
 
     if (from.roomName == to.roomName) {
@@ -54,6 +66,58 @@ export class Pathing {
       const dy = Math.abs(to.y - from.y);
       return dwx + dwy + Math.max(dx, dy)
     }
+
+  }
+
+
+  static roomPath(from: string, to: string): string[] | null {
+
+    const visitedRooms: { room: string, value: number }[] = [];
+    const nextRooms: { room: string, value: number }[] = [];
+
+    nextRooms.push({ room: from, value: 0 });
+
+    let maxLoop = 100;
+
+    while (nextRooms.length > 0 && maxLoop > 0) {
+
+      const roomInfo = nextRooms.shift()!;
+
+      if (roomInfo.room == to) {
+
+        const result: string[] = [];
+
+
+        return result.reverse();
+      }
+
+      visitedRooms.push(roomInfo);
+
+      const neerRooms = _.values(Game.map.describeExits(roomInfo.room));
+
+      let queueUpdated = false;
+
+      neerRooms.forEach(neerRoom => {
+        const neerRoomValue = roomInfo.value + 1;
+        const visitedRoom = visitedRooms.find(info => info.room == neerRoom);
+        if (visitedRoom == undefined) {
+          nextRooms.push({ room: neerRoom, value: neerRoomValue });
+          queueUpdated = true;
+        } else if (neerRoomValue < visitedRoom.value) {
+          // Update value
+          visitedRoom.value = neerRoomValue;
+        }
+      });
+
+      if (queueUpdated) {
+        nextRooms.sort((r1, r2) => this.getRoomRange(from, r1.room) - this.getRoomRange(from, r2.room));
+      }
+
+      maxLoop--;
+
+    }
+
+    return null;
 
   }
 

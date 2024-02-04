@@ -2,6 +2,8 @@ import _ from "lodash";
 
 export const Settings = {
 
+  creepMaxTaskRun: 4,
+
   profilerEnable: true,
   rebuildTick: 500,
   cpuMax: Game.cpu.limit * 0.85, // 17 per hub

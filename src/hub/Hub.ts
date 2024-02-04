@@ -439,7 +439,10 @@ export class Hub {
      */
     pushProcess(this.processStack, () => {
       this.drops.forEach(drop => {
-        if (!this.logisticsNetwork.haveRequest(drop, drop.resourceType)) {
+
+        // TODO : if energy, only of not near of CONTROLLER, SOURCE, CONSTRUCTION_CITE
+
+        if (!this.logisticsNetwork.haveRequest(drop, drop.resourceType) && drop.resourceType != RESOURCE_ENERGY) {
           this.logisticsNetwork.requestOutput(drop, drop.resourceType);
         }
       });
@@ -465,12 +468,7 @@ export class Hub {
     pushProcess(this.processStack, () => this.linkNetwork.run(), PROCESS_PRIORITY_HIGHT + 30);
 
     // Run agent
-    _.orderBy(this.agents, agent => agent.lastRunTick, ['asc']).forEach(agent => pushProcess(this.processStack, () => {
-      const start = Game.cpu.getUsed();
-      agent.run(this);
-      const timeElasped = Game.cpu.getUsed() - start;
-      this.creepCPU += timeElasped;
-    }, PROCESS_PRIORITY_NORMAL));
+    _.orderBy(this.agents, agent => agent.lastRunTick, ['asc']).forEach(agent => agent.run(this), PROCESS_PRIORITY_NORMAL);
 
     // Run room planner
     pushProcess(this.processStack, () => this.roomPlanner.run(), PROCESS_PRIORITY_LOW);

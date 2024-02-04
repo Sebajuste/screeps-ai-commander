@@ -2,6 +2,7 @@ import { Commander } from "Commander";
 import { BuildDaemon } from "daemons";
 import { Directive } from "directives/Directive";
 import { Hub } from "hub/Hub";
+import { log } from "utils/log";
 
 export class BuildDirective extends Directive {
 
@@ -20,6 +21,8 @@ export class BuildDirective extends Directive {
   }
 
   init(): void {
+
+    log.debug(`${this.print} - build isDaemonSuspended ${this.hub.dispatcher.isDaemonSuspended(this.daemons.build)}`);
 
   }
 

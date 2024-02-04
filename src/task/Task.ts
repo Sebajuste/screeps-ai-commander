@@ -30,6 +30,8 @@ export abstract class Task {
   target: TaskTarget;
   options: TaskOptions;
 
+  reusePath?: number;
+
   constructor(name: string, target: TaskTarget, options: TaskOptions = DEFAULT_OPTIONS) {
     this.name = name;
     this.target = target;
@@ -56,17 +58,22 @@ export abstract class Task {
       return ERR_TIRED;
     }
 
-    // const r = creep.moveTo(this.target);
-    const r = creep.room.name == this.target.pos.roomName ? creep.moveTo(this.target) : Traveler.travelTo(creep, this.target);
+    const r = creep.moveTo(this.target, {
+      reusePath: this.reusePath != undefined ? this.reusePath : 5
+    });
+    // const r = creep.room.name == this.target.pos.roomName ? creep.moveTo(this.target) : Traveler.travelTo(creep, this.target);
     if (r != OK) {
       log.warning(`${printCreep(creep)} cannot move to ${this.target} ${JSON.stringify(this.target.pos)}, err : ${r}`);
       if (r == ERR_NO_PATH) {
         this.finish(creep);
-      } else if (r == -10) {
-        this.finish(creep);
-        log.warning(`Error -10 for ${this.name}`);
-        Exploration.exploration().addInvalidRoom(this.target.pos.roomName);
       }
+      /*
+      else if (r == ERR_INVALID_ARGS) {
+        Exploration.exploration().addInvalidRoom(this.target.pos.roomName);
+        this.finish(creep);
+        log.warning(`Error ERR_INVALID_ARGS for ${this.name}`);
+      }
+      */
     }
 
     return r;
