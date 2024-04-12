@@ -6,4 +6,4 @@
 /dist
 
 # config
-screeps.json
+.screeps.json

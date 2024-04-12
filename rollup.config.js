@@ -16,7 +16,7 @@ let cfg;
 const dest = process.env.DEST;
 if (!dest) {
   console.log('\x1b[46m%s\x1b[0m \x1b[36m%s\x1b[0m', 'Compiling ...', '(deploy destination: none)');
-} else if ((cfg = require("./screeps.json")[dest]) == null) {
+} else if ((cfg = require("./.screeps.json")[dest]) == null) {
   throw new Error("Invalid upload destination");
 } else {
   console.log('\x1b[46m%s\x1b[0m \x1b[36m%s\x1b[0m', 'Compiling ...', `(deploy destination: ${dest})`);
