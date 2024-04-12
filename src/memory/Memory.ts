@@ -4,6 +4,8 @@ interface MemCacheMemory<T> {
   data?: T;
 }
 
+export type MemCacheSupplier = <T> () => T;
+
 export class MemCache<T, S = T> {
 
   protected memory: MemCacheMemory<S>;
@@ -12,9 +14,12 @@ export class MemCache<T, S = T> {
 
   protected name: string;
 
-  constructor(memory: any, name: string, defaults: any = {}) {
+  protected supplier?: MemCacheSupplier;
+
+  constructor(memory: any, name: string, defaults: any = {}, supplier?: MemCacheSupplier) {
     this.name = name;
     this.memory = Mem.wrap(memory, name, defaults);
+    this.supplier = supplier;
   }
 
   protected deserialize(): T | null {
@@ -35,6 +40,10 @@ export class MemCache<T, S = T> {
   }
 
   get value(): T | null {
+    if (!this._cache && !this.memory.data && this.supplier) {
+      // Init from supplier function
+      this._cache = this.supplier();
+    }
     if (!this._cache && this.memory.data) {
       // Update cache from memory
       const obj = this.deserialize();

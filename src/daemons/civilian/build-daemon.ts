@@ -157,7 +157,7 @@ export class BuildDaemon extends Daemon {
       const drops = _.filter(this.hub.dropsByRooms[this.pos.roomName] ?? [], drop => drop.resourceType == RESOURCE_ENERGY && Game.rooms[drop.pos.roomName] != undefined);
       const drop = findClosestByLimitedRange(this.constructionSite.pos, drops, 5);
 
-      const energyRequired = Math.floor((this.constructionSite.progressTotal - this.constructionSite.progress) / 5);
+      const energyRequired = Math.floor((this.constructionSite.progressTotal - this.constructionSite.progress));
       const amount = energyRequired - (drop?.amount ?? 0);
 
       log.debug(`build site energyRequired: ${energyRequired}, amount: ${amount} `);
@@ -219,8 +219,8 @@ export class BuildDaemon extends Daemon {
 
 function siteScore(hub: Hub, site: ConstructionSite): number {
   const mainRoomScore = site.pos.roomName == hub.pos.roomName ? 100 : 1;
-  const typeScore = Math.max(1, BuildPriorities.length - _.indexOf(BuildPriorities, site.structureType));
+  const typeScore = Math.max(1, BuildPriorities.length - _.indexOf(BuildPriorities, site.structureType)) * 10;
   const distanceScore = 1 / getMultiRoomRange(hub.pos, site.pos);
   const buildScore = site.progressTotal < 5000 ? (site.progress / site.progressTotal) : ((site.progress / site.progressTotal) * 0.5);
-  return mainRoomScore + typeScore * buildScore * distanceScore;
+  return mainRoomScore + typeScore + buildScore * distanceScore;
 }

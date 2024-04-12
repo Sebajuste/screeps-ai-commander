@@ -54,6 +54,8 @@ export enum RunLevel {
   BOOST = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Upgrade | RunActivity.Outpost | RunActivity.Build | RunActivity.Explore,
   // Use minimum room 
   NORMAL = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Upgrade | RunActivity.Build | RunActivity.Miner | RunActivity.Industry | RunActivity.Explore,
+  // Use all activities with boost
+  NORMAL_BOOST = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Upgrade | RunActivity.Outpost | RunActivity.Build | RunActivity.Miner | RunActivity.Industry | RunActivity.Explore,
   // Use minimal activity
   // LIMITED = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Upgrade | RunActivity.Industry,
   // Minimal activity for energy
@@ -338,6 +340,7 @@ export class Hub {
     const roledata = [
       ['CPU creeps', `${Math.floor(this.creepCPU * 100 + Number.EPSILON) / 100}`],
       ['CPU total', `${Math.floor(Game.cpu.getUsed() * 100 + Number.EPSILON) / 100}`],
+      ['Run Level', `${RunLevel[this.runLevel]}`],
     ];
     const tablePos = new RoomPosition(x, y, this.room.name);
     y = Visualizer.infoBox(`${this.name} CPU`, roledata, tablePos, 12);

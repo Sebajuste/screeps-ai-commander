@@ -111,6 +111,7 @@ export abstract class Directive implements Actor {
             this.remove();
             return;
         }
+        this.room = Game.rooms[this.room.name];
         this.memory = this.flag.memory;
         this.pos = flag.pos;
         this.resourceFlowStats.clear();

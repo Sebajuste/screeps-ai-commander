@@ -38,6 +38,12 @@ export function dropScore(from: { pos: RoomPosition, store: StoreDefinition }, r
   return bonus * load_factor * load_factor * range * range;
 }
 
+export function harvestSourceScore(from: { pos: RoomPosition, store: StoreDefinition }, source: Source) {
+  const range = 1.0 / (from.pos.roomName == source.pos.roomName ? from.pos.getRangeTo(source.pos) : 70);
+  const loadFactor = source.energy / source.energyCapacity;
+  return range * loadFactor;
+}
+
 export function sourceScore(from: { pos: RoomPosition, store: StoreDefinition }, destination: { pos: RoomPosition, store: StoreDefinition }) {
   const range = 1.0 / (from.pos.roomName == destination.pos.roomName ? from.pos.getRangeTo(destination.pos) : 70);
   const load_factor = Math.min(2000, destination.store.getUsedCapacity(RESOURCE_ENERGY)); // Storage will be handle like container
