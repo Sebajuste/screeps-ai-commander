@@ -12,7 +12,7 @@ import { log } from "utils/log";
 export class UpgradeDaemon extends Daemon {
 
   static Settings = {
-    boostEnergyAmount: 75000,
+    boostEnergyAmount: 30000, // 75000
   };
 
   upgradeArea: UpgradeArea;
@@ -66,8 +66,19 @@ export class UpgradeDaemon extends Daemon {
     this.resourceFlowStats.pushOutput(RESOURCE_ENERGY, outputRate);
 
     if (this.link && this.link.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.upgradeMinLinkEnergy && (!this.hub.storage || this.hub.storage?.store.getUsedCapacity(RESOURCE_ENERGY) > 5000 || this.hub.controller.ticksToDowngrade < 50000)) {
-      // Spawn upgrader using energy from link
+      // Request energy
       this.hub.linkNetwork.requestInput(this.link);
+
+      if (this.hub.level < 6) {
+        // Request energy by hauler if hub level cannot allow full link number
+        this.hub.logisticsNetwork.requestInput(this.link, RESOURCE_ENERGY);
+
+        if (this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000) {
+          // Allow take energy from storage
+          this.hub.logisticsNetwork.removeRequest(this.hub.storage, RESOURCE_ENERGY);
+          this.hub.logisticsNetwork.requestOutput(this.hub.storage, RESOURCE_ENERGY);
+        }
+      }
     }
     /*
     if ((!this.upgradeArea.container && !this.link) || this.upgradeArea.container) {
@@ -85,7 +96,7 @@ export class UpgradeDaemon extends Daemon {
         this.hub.logisticsNetwork.requestInput(this.upgradeArea.container, RESOURCE_ENERGY);
       }
 
-      if (this.hub.level < 8 && this.hub.storage && this.hub.storage.store.getUsedCapacity() > 50000 && this.upgradeArea.container.store.getFreeCapacity(RESOURCE_ENERGY) >= 1000) {
+      if (this.hub.level < 8 && this.hub.storage && this.hub.storage.store.getUsedCapacity() > 40000 && this.upgradeArea.container.store.getFreeCapacity(RESOURCE_ENERGY) >= 1000) {
         // Request energy from Storage If no link available
         this.hub.logisticsNetwork.removeRequest(this.hub.storage, RESOURCE_ENERGY);
         this.hub.logisticsNetwork.requestOutput(this.hub.storage, RESOURCE_ENERGY);

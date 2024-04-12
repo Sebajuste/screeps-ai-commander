@@ -30,7 +30,7 @@ export class ReserveDaemon extends Daemon {
 
   init(): void {
 
-    if (this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000) {
+    if (this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000 && (this.room.controller?.reservation?.ticksToEnd ?? 0) < 1000) {
       this.spawnHandler();
     }
 

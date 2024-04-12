@@ -11,16 +11,16 @@ export const Settings = {
   cpuBucketMin: 400,
 
   hubMaxHauler: 6,
-  hubOutpostAmount: 2,
+  hubOutpostAmount: 3,
   hubMaxSource: (rcl: number) => {
     switch (rcl) {
-      case 4: return 4;
+      case 4: return 5;
       case 5: return 4;
-      case 6: return 3;
+      case 6: return 4;
       case 7: return 3;
       case 8: return 2;
       default:
-        return Math.max(2, rcl < 4 ? 6 : 4);
+        return Math.max(2, rcl < 4 ? 6 : 5);
     }
   },
 

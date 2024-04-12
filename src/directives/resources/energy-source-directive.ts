@@ -7,7 +7,7 @@ import { Mem, MemCacheObject } from "memory/Memory";
 import { deserializePos, serializePos } from "task/task-initializer";
 import { Coord, coordFromName, findNearValidPos, isEqualCoord } from "utils/coord";
 import { log } from "utils/log";
-import { linksMax } from "utils/rcl-tool";
+import { linksSourceMax } from "utils/rcl-tool";
 import { findClosestByLimitedRange } from "utils/util-pos";
 
 
@@ -34,7 +34,6 @@ export class EnergySourceDirective extends Directive {
 
   daemons: {
     harvest: HarvestDaemon,
-    // hauler: HaulerDaemon
   };
 
   containerPos: RoomPosition;
@@ -78,6 +77,7 @@ export class EnergySourceDirective extends Directive {
       log.debug(`> path[0]: ${path[0].x},${path[0].y}; path[1]: ${path[1].x},${path[1].y}; `)
     }
     if (!this.memory.containerPos && path) {
+      // Need to determine container position
       const step = path[0];
 
       if (step.x == 1 || step.y == 1 || step.x == 48 || step.y == 48) {
@@ -123,20 +123,14 @@ export class EnergySourceDirective extends Directive {
 
   spawnDaemons(): void {
 
-    const source = _.find(this.hub.sources, source => source.pos.roomName == this.pos.roomName && source.pos.x == this.pos.x && source.pos.y == this.pos.y);
-
-    if (source) {
-      const priority = 50 - 1 / ((this.flag.memory as any)['hubDistance'] ?? 1);
-      if (!this.daemons.harvest) {
+    if (!this.daemons.harvest) {
+      const source = _.find(this.hub.sources, source => source.pos.roomName == this.pos.roomName && source.pos.x == this.pos.x && source.pos.y == this.pos.y);
+      if (source) {
+        const priority = 50 - 1 / ((this.flag.memory as any)['hubDistance'] ?? 1);
         this.daemons.harvest = new HarvestDaemon(this.hub, this, source, priority);
+      } else {
+        log.error(`${this.print} No source available`)
       }
-      /*
-      if (!this.daemons.hauler && !this._linkCache.isValid()) {
-        this.daemons.hauler = new HaulerDaemon(this.hub, this, priority);
-      }
-      */
-    } else {
-      log.error(`${this.print} No source available`)
     }
   }
 
@@ -160,13 +154,15 @@ export class EnergySourceDirective extends Directive {
       }
     }
 
-    log.debug(`${this.print} Link required :${linksMax(this.hub.level)}, this.isOutpost: ${this.isOutpost}, this._linkCache.value: ${this._linkCache.value}`)
+    log.debug(`${this.print} Link required :${linksSourceMax(this.hub.level)}, this.isOutpost: ${this.isOutpost}, this._linkCache.value: ${this._linkCache.value}`)
 
-    if (this.linkPos && !this.isOutpost && !this._linkCache.value && !this._constructionSiteCache.value && this.hub.links.length >= 1 && this.hub.links.length < linksMax(this.hub.level)) {
-      // Create Link if required
-      const r = this.linkPos.createConstructionSite(STRUCTURE_LINK);
-      if (r != OK) {
-        log.warning(`${this.print} cannot create construction site ${r} at ${this.linkPos}`);
+    if (this.linkPos && !this.isOutpost && !this._linkCache.value && !this._constructionSiteCache.value) {
+      if (this.hub.links.length >= 1 && this.hub.links.length < linksSourceMax(this.hub.level)) {
+        // Create Link if required
+        const r = this.linkPos.createConstructionSite(STRUCTURE_LINK);
+        if (r != OK) {
+          log.warning(`${this.print} cannot create construction site ${r} at ${this.linkPos}`);
+        }
       }
     }
 
@@ -191,15 +187,27 @@ export class EnergySourceDirective extends Directive {
     }
 
     if (!this._containerCache.value) {
-      this._containerCache.value = findClosestByLimitedRange(this.pos, this.hub.containersByRooms[this.room.name] ?? [], 5);
+      this._containerCache.value = _.find(this.containerPos.lookFor(LOOK_STRUCTURES), structure => structure.structureType == STRUCTURE_CONTAINER) as StructureContainer ?? null;
+      // this._containerCache.value = findClosestByLimitedRange(this.pos, this.hub.containersByRooms[this.room.name] ?? [], 5);
     }
 
     if (!this.isOutpost && !this._linkCache.isValid()) {
-      this._linkCache.value = findClosestByLimitedRange(this.pos, this.hub.links, 5);
+      this._linkCache.value = _.find(this.linkPos.lookFor(LOOK_STRUCTURES), structure => structure.structureType == STRUCTURE_LINK) as StructureLink ?? null;
+      // this._linkCache.value = findClosestByLimitedRange(this.pos, this.hub.links, 5);
     }
 
     if (!this._constructionSiteCache.value) {
-      this._constructionSiteCache.value = findClosestByLimitedRange(this.pos, this.hub.constructionSitesByRooms[this.room.name] ?? [], 5);
+      const containerConstructionSite = _.find(this.containerPos.lookFor(LOOK_CONSTRUCTION_SITES), site => site.structureType == STRUCTURE_CONTAINER);
+      if (containerConstructionSite) {
+        this._constructionSiteCache.value = containerConstructionSite;
+      } else {
+        const containerLinkSite = _.find(this.containerPos.lookFor(LOOK_CONSTRUCTION_SITES), site => site.structureType == STRUCTURE_LINK);
+        if (containerLinkSite) {
+          this._constructionSiteCache.value = containerLinkSite;
+        }
+      }
+
+      // this._constructionSiteCache.value = findClosestByLimitedRange(this.pos, this.hub.constructionSitesByRooms[this.room.name] ?? [], 5);
     }
 
 

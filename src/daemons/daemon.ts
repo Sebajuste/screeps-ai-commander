@@ -149,7 +149,7 @@ export abstract class Daemon implements Actor {
       creepQuantity = (this.agentsByRole[setup.role] ?? []).length;
     }
 
-    log.debug(`${this.print} wishList creepQuantity: ${creepQuantity}`);
+    // log.debug(`${this.print} wishList creepQuantity: ${creepQuantity}`);
 
     const spawnQuantity = quantity - creepQuantity;
 
@@ -184,6 +184,7 @@ export abstract class Daemon implements Actor {
     this.agentUsageReport = {};
     this.performanceReport = {};
     this.resourceFlowStats.clear();
+    this.room = Game.rooms[this.room.name];
   }
 
   preInit() {

@@ -117,6 +117,10 @@ export class Pathing {
 
     }
 
+    if (maxLoop == 0) {
+      log.warning(`Max loop reach to search room path from ${from} to ${to}`)
+    }
+
     return null;
 
   }

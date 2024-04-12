@@ -90,7 +90,7 @@ export class AgentFactoryArea extends Area {
     this.populateStructure();
   }
 
-  spawning() {
+  get spawning() {
     return this.spawns.length != this.availableSpawns.length;
   }
 

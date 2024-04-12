@@ -1,9 +1,8 @@
 import { Actor } from "Actor";
-import { Exploration, ExploredRoom } from "Exploration";
+import { Exploration } from "Exploration";
 import { Agent, AgentRequestOptions, AgentSetup } from "agent/Agent";
 import { AGENT_PRIORITIES } from "agent/agent-setup";
 import { ScoutRole } from "agent/roles/roles";
-import { CPU } from "cpu/CPU";
 import { Daemon } from "daemons/daemon";
 import { Hub, RunActivity } from "hub/Hub";
 import _ from "lodash";
@@ -11,14 +10,17 @@ import { Mem } from "memory/Memory";
 import { registerOutpost } from "room/room-analyse";
 import { Settings } from "settings";
 import { log } from "utils/log";
+import { Pathing } from "utils/pathing";
 import { getRoomRange } from "utils/util-pos";
 
 interface ExplorerMemory {
   nextRooms: string[];
+  avoidRooms: string[];
 }
 
 const DEFAULT_EXPLORER_MEMORY = {
-  nextRooms: []
+  nextRooms: [],
+  avoidRooms: []
 } as ExplorerMemory;
 
 export class ProbeDaemon extends Daemon {
@@ -77,10 +79,22 @@ export class ProbeDaemon extends Daemon {
       .map(room => room.exits)//
       .flatten()//
       .uniq()//
-      .filter(roomName => exploration.needUpdate(roomName) && Game.map.getRoomStatus(roomName).status == "normal")//
+      .filter(roomName => exploration.needUpdate(roomName) && Game.map.getRoomStatus(roomName).status == "normal" && !this.explorerMemory.avoidRooms.includes(roomName))//
       .orderBy(roomName => getRoomRange(this.pos.roomName, roomName), ['asc'])//
       .slice(0, 5)//
       .value();
+
+    /*
+  _.remove(this.nextRooms, roomName => {
+    const roomPath = Pathing.roomPath(this.room.name, roomName);
+    const isReachable = roomPath && roomPath.length > 0;
+    if (!isReachable) {
+      this.explorerMemory.avoidRooms.push(roomName);
+      return true;
+    }
+    return false;
+  });
+  */
 
     log.alert(`> this.nextRooms: ${this.nextRooms.length}`);
 
@@ -157,7 +171,7 @@ export class ProbeDaemon extends Daemon {
 
       const roomRequireAmount = Settings.hubOutpostAmount - this.hub.memory.outposts.length;
 
-      log.debug(`${this.print} roomRequireAmount: ${roomRequireAmount}, Settings.hubOutpostAmount: ${Settings.hubOutpostAmount}, this.hub.outposts.length: ${this.hub.memory.outposts.length}`);
+      // log.debug(`${this.print} roomRequireAmount: ${roomRequireAmount}, Settings.hubOutpostAmount: ${Settings.hubOutpostAmount}, this.hub.outposts.length: ${this.hub.memory.outposts.length}`);
 
       if (roomRequireAmount > 0) {
         // Find best outpost
@@ -171,7 +185,7 @@ export class ProbeDaemon extends Daemon {
 
           const nearRooms = exploration.getNearRooms(this.hub.room.name, 2);
 
-          log.debug(`> nearRooms: ${nearRooms.length}`);
+          // log.debug(`> nearRooms: ${nearRooms.length}`);
 
           const bestRooms = _.chain(nearRooms)//
             .filter(roomName => exploration.getRoom(roomName)?.haveEnnemy == false && !outpostNames.includes(roomName) && !exploration.isInvalid(roomName))// No ennemy and not already outpost
@@ -188,7 +202,7 @@ export class ProbeDaemon extends Daemon {
             .slice(0, roomRequireAmount)//
             .value();
 
-          log.debug(`> bestRooms: ${bestRooms.length} `);
+          // log.debug(`> bestRooms: ${bestRooms.length} `);
 
           bestRooms.forEach(roomName => registerOutpost(this.hub, roomName));
 

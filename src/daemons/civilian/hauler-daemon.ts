@@ -69,7 +69,8 @@ export class HaulerDaemon extends Daemon {
 
       log.debug('totalResourcesToTransport : ', totalResourcesToTransport);
 
-      const carryPerAgent = countBodyPart(bodyParts, CARRY) * CARRY_CAPACITY;
+      const bestBodyParts = selectBodyParts(HAULER_TEMPLATE, this.hub.room.energyCapacityAvailable);
+      const carryPerAgent = countBodyPart(bestBodyParts, CARRY) * CARRY_CAPACITY;
       const haulerRequire = Math.ceil(totalResourcesToTransport / carryPerAgent);
       this._haulerRequire = MathRange(1, this.maxQuantity, haulerRequire);
 

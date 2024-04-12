@@ -46,13 +46,13 @@ export class UpgradeArea extends Area {
     }
 
     if (!this.memory.containerPos && steps) {
-      const stepIndex = Math.min(1, steps.length);
+      const stepIndex = Math.min(2, steps.length);
       const step = steps[stepIndex];
       this.memory.containerPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
     }
 
     if (!this.memory.linkPos && steps) {
-      const stepIndex = Math.min(2, steps.length);
+      const stepIndex = Math.min(3, steps.length);
       const step = steps[stepIndex];
       this.memory.linkPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
     }
@@ -65,12 +65,10 @@ export class UpgradeArea extends Area {
     if (!this._container) {
       this._container = findAtPos(this.dropPos, this.hub.containersByRooms[this.pos.roomName] ?? []);
     }
-    // return this._containerCache.value;
     return this._container!;
   }
 
   get link(): StructureLink | null | undefined {
-    // return this._linkCache.value;
     return this._link;
   }
 

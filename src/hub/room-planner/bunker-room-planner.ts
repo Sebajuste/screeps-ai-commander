@@ -11,6 +11,62 @@ import { printPos } from "utils/util-pos";
 
 
 
+export interface Quadrant {
+  topLeft: Coord[];
+  topRight: Coord[];
+  bottomRight: Coord[];
+  bottomLeft: Coord[];
+}
+
+export function filterQuadrant(quadrant: Quadrant, filter: (coord: Coord) => boolean): Quadrant {
+  return {
+    topLeft: _.filter(quadrant.topLeft, filter),
+    topRight: _.filter(quadrant.topRight, filter),
+    bottomRight: _.filter(quadrant.bottomRight, filter),
+    bottomLeft: _.filter(quadrant.bottomLeft, filter),
+  }
+}
+
+function orderQuadrant(a: Coord, index: number): number {
+  console.log('a: ', JSON.stringify(a), ', index: ', index);
+  return a.x * 50 + a.y;
+}
+
+export function buildQuadrantFillOrder(bunkerPos: RoomPosition, structureLayout: StructureLayout, level = 8): Quadrant {
+
+  const layout = structureLayout[level];
+
+  const structures = _.flatten(_.values(layout?.structures ?? {}));
+
+  const xCoords = _.map(structures, structure => structure.x);
+  const yCoords = _.map(structures, structure => structure.y);
+
+  const minX = _.min(xCoords)!;
+  const maxX = _.max(xCoords)!;
+  const minY = _.min(yCoords)!;
+  const maxY = _.max(yCoords)!;
+
+  const center: Coord = { x: (maxX - minX) / 2.0 + minX, y: (maxY - minY) / 2.0 + minY };
+
+  const topLeftStructureCoords = _.orderBy(_.filter(structures, structure => structure.x < center.x && structure.y < center.y), orderQuadrant);
+  const topRightStructureCoords = _.orderBy(_.filter(structures, structure => structure.x > center.x && structure.y < center.y), orderQuadrant);
+
+  const bottomLeftStructureCoords = _.orderBy(_.filter(structures, structure => structure.x < center.x && structure.y > center.y), orderQuadrant);
+  const bottomRightStructureCoords = _.orderBy(_.filter(structures, structure => structure.x > center.x && structure.y > center.y), orderQuadrant);
+
+  const anchor: Coord = structureLayout.data.anchor;
+
+  return {
+    topLeft: RoomPlanner.translateCoords(anchor, bunkerPos, topLeftStructureCoords),
+    topRight: RoomPlanner.translateCoords(anchor, bunkerPos, topRightStructureCoords),
+    bottomLeft: RoomPlanner.translateCoords(anchor, bunkerPos, bottomLeftStructureCoords),
+    bottomRight: RoomPlanner.translateCoords(anchor, bunkerPos, bottomRightStructureCoords)
+  }
+
+}
+
+
+
 
 export interface BunkerPlannerMemory extends PlannerMemory {
 

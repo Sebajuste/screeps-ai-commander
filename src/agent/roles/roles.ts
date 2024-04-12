@@ -15,6 +15,7 @@ import { Settings } from "settings";
 import { getSignFromRoom, selectSignText } from "utils/sign-text";
 import { destinationScore, dropScore, hostileScore, scoutScore, sourceScore } from "./roles-utils";
 import { haveBodyPart } from "agent/agent-builder";
+import { Pathing } from "utils/pathing";
 
 export class BuilderRole {
 
@@ -370,7 +371,8 @@ export class RepairRole {
 
     if (agent.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
       // Repair
-      pipeline.push(Tasks.repair(structure))
+      pipeline.push(Tasks.repair(structure));
+      return pipeline;
     }
 
     const energyDrops = _.filter(hub.dropsByRooms[structure.pos.roomName] ?? [], drop => drop.resourceType == RESOURCE_ENERGY);
@@ -421,8 +423,6 @@ export class RepairRole {
 
     }
 
-
-
     return pipeline;
 
   }
@@ -468,9 +468,11 @@ export class ScoutRole {
 
     const agentMemory: any = agent.memory;
 
+    const nextRoom = agentMemory['nextRoom'];
+
     // Define next room to explore for the current scout
-    if (!agentMemory['nextRoom'] || agentMemory['nextRoom'] == roomName) {
-      // Destination Room Reached
+    if (!nextRoom || nextRoom == roomName) {
+      // No destination set OR destination room reached
 
       const text = getSignFromRoom(hub, agent.creep.room);
       if (text) {
@@ -479,27 +481,33 @@ export class ScoutRole {
 
       log.debug(`ScoutRole for ${agent.print}. Destination room reached`);
 
-      const nextRoom = _.first(_.orderBy(nextRooms, room => scoutScore(agent, room), ['desc']));
+      const newNextRoom = _.first(_.orderBy(nextRooms, room => scoutScore(agent, room), ['desc']));
 
-      _.remove(nextRooms, it => it == nextRoom);
+      _.remove(nextRooms, it => it == newNextRoom);
 
-      agentMemory['nextRoom'] = nextRoom;
+      agentMemory['nextRoom'] = newNextRoom;
 
-      pipeline.push(Tasks.wait(new RoomPosition(25, 25, nextRoom!), 20));
+      pipeline.push(Tasks.wait(new RoomPosition(25, 25, newNextRoom!), 20));
 
       return pipeline;
     }
 
-    if (agentMemory['nextRoom'] && agent.pos.roomName != agentMemory['nextRoom']) {
-      // Invalid room
+    if (nextRoom && agent.pos.roomName != nextRoom) {
+      // Probe is not in the room target
 
       const text = getSignFromRoom(hub, agent.creep.room);
       if (text) {
         pipeline.push(Tasks.sign(agent.creep.room.controller!, text));
       }
 
-      log.debug(`ScoutRole for ${agent.print}. Invalid current room, agentMemory: ${agentMemory['nextRoom']}`);
-      pipeline.push(Tasks.wait(new RoomPosition(25, 25, agentMemory['nextRoom']), 20));
+      log.debug(`ScoutRole for ${agent.print}. Invalid current room, agentMemory: ${nextRoom}`);
+
+
+      const roomPath = Pathing.roomPath(agent.room.name, nextRoom);
+
+      console.log(`> roomPath: ${JSON.stringify(roomPath)}`)
+
+      pipeline.push(Tasks.wait(new RoomPosition(25, 25, nextRoom), 20));
       return pipeline;
     }
 
@@ -560,7 +568,8 @@ export class SupplierRole {
 
     //if (agent.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
     // Supply Energy
-    const sortedDestinations = _.orderBy(fillRequired, desination => destinationScore(agent, desination), ['desc']);
+    // const sortedDestinations = _.orderBy(fillRequired, desination => destinationScore(agent, desination), ['desc']);
+    const sortedDestinations = _.orderBy(fillRequired, desination => desination.pos.x * 50 + desination.pos.y, ['desc']);
 
     for (const destination of sortedDestinations) {
 
@@ -614,12 +623,17 @@ export class UpgradeRole {
       tasks.push(Tasks.pickup(nearDrop));
     }
 
-    if (link && container) {
+    if (link && container && container.store.getUsedCapacity(RESOURCE_ENERGY) == 0) {
       // Dismantle container to avoid use energy to repair it
       tasks.push(Tasks.dismantle(container));
     } else if (validContainer) {
       // Take energy from tructure
-      tasks.push(Tasks.withdraw(storeStructure, RESOURCE_ENERGY));
+      if (container && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+        tasks.push(Tasks.withdraw(container, RESOURCE_ENERGY));
+      } else if (link) {
+        tasks.push(Tasks.withdraw(link, RESOURCE_ENERGY));
+      }
+
     }
 
     return tasks;

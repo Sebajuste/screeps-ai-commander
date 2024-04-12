@@ -165,28 +165,63 @@ export class Commander {
   analyseRunLevel(hub: Hub) {
 
     if (Game.cpu.bucket < 5000) {
-      return hub.runLevel = RunLevel.MINIMAL;
+      return RunLevel.MINIMAL;
     }
 
-    if (hub.level <= 3 || (hub.level == 4 && hub.constructionSitesByRooms[hub.name].length > 0 && hub.storage && hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 50000)) {
-      // Boost mode until lvl 4, stop when all constructions are done
-      return hub.runLevel = RunLevel.BOOST;
+    if (_.keys(this.hubs).length <= 1 && hub.level < 8) {
+      return RunLevel.NORMAL_BOOST;
+    }
+
+    const constructionCount = hub.constructionSitesByRooms[hub.name].length ?? 0;
+
+    if (hub.level <= 3 || (hub.level == 4 && constructionCount > 0 && hub.storage && hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) < 50000)) {
+      // Boost mode until lvl 4, stop when all constructions are done, and storage have enought energy, or no other hub exists
+      return RunLevel.BOOST;
     }
 
     if (!hub.storage || !hub.towers || hub.towers.length == 0) {
-      return hub.runLevel = RunLevel.NORMAL;
+      return RunLevel.NORMAL;
     }
 
     const energyAmount = hub.storage.store.getUsedCapacity(RESOURCE_ENERGY);
-    if (energyAmount > 100000 && hub.level == 8 && hub.constructionSitesByRooms[hub.name].length == 0) {
-      hub.runLevel = RunLevel.MINIMAL;
-    } else if (energyAmount > 100000 && hub.constructionSitesByRooms[hub.name].length == 0) {
-      hub.runLevel = RunLevel.MINIMAL_UP;
+    if (energyAmount > 100000 && hub.level == 8 && constructionCount == 0) {
+      return RunLevel.MINIMAL;
+    } else if (energyAmount > 100000 && constructionCount == 0) {
+      return RunLevel.MINIMAL_UP;
     } else {
-      hub.runLevel = RunLevel.NORMAL;
+      return RunLevel.NORMAL;
     }
 
-    return hub.runLevel;
+  }
+
+  analyseNextHubToBuild() {
+    const minHubLevel = _.min(_.map(this.hubs, hub => hub.level)) ?? 10;
+    if (minHubLevel > 5) {
+      // If we have an existing HUB that can build a new HUB
+      const nextRoom = analyseNextHub(this.hubs, this.hubMap);
+
+      log.info(`NEXT HUB : `, nextRoom)
+
+      /*
+      if (nextRoom) {
+
+        const startHub = _.chain(this.hubs)//
+          .filter(hub => hub.level > 5)//
+          .orderBy(hub => getRoomRange(hub.pos.roomName, nextRoom), ['asc'])//
+          .first()//
+          .value();
+
+        if (startHub) {
+          // Select the nearest HUB to create colonizer
+
+
+
+          // TODO : create directive
+
+        }
+      }
+      */
+    }
   }
 
   build() {
@@ -204,7 +239,12 @@ export class Commander {
       hub.processStack = [];
       pushProcess(hub.processStack, () => {
         hub.refresh();
-        this.analyseRunLevel(hub);
+        const runLevel = this.analyseRunLevel(hub);
+        console.log('analyseRunLevel() > ', runLevel)
+        if (runLevel != hub.runLevel) {
+          log.info(`${hub.print} has changed run level from ${hub.runLevel} to ${runLevel}`);
+          hub.runLevel = runLevel;
+        }
       }, PROCESS_PRIORITY_HIGHT)
     });
   }
@@ -214,19 +254,8 @@ export class Commander {
     _.forEach(this.hubs, hub => pushProcess(hub.processStack, () => hub.init(), PROCESS_PRIORITY_HIGHT + 10));
 
     if (Game.time % 500) {
-      const minHubLevel = _.min(_.map(this.hubs, hub => hub.level)) ?? 10;
-      if (minHubLevel > 5) {
-        const nextRoom = analyseNextHub(this.hubs, this.hubMap);
-        if (nextRoom) {
-          const startHub = _.first(_.orderBy(this.hubs, hub => getRoomRange(hub.pos.roomName, nextRoom), ['asc']));
-          if (startHub) {
 
-            // TODO : create directive
-
-          }
-        }
-      }
-
+      this.analyseNextHubToBuild();
     }
 
   }

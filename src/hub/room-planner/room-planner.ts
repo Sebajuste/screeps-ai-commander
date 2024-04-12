@@ -129,6 +129,13 @@ export abstract class RoomPlanner {
     return map;
   }
 
+  static translateCoords(fromPos: RoomPosition | Coord, toPos: RoomPosition | Coord, coords: Coord[]) {
+    const dx = toPos.x - fromPos.x;
+    const dy = toPos.y - fromPos.y;
+
+    return _.map(coords, coord => ({ x: coord.x + dx, y: coord.y + dy }));
+  }
+
   static translateComponent(map: StructureMap, fromPos: RoomPosition | Coord, toPos: RoomPosition | Coord): void {
     const dx = toPos.x - fromPos.x;
     const dy = toPos.y - fromPos.y;
