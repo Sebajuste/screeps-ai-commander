@@ -8,9 +8,11 @@
   "scripts": {
     "clean": "rimraf -rf tsc-out && rimraf -rf dist",
     "lint": "eslint \"src/**/*.ts\"",
-    "build": "SET NODE_ENV=dev && rollup -c",
+    "prebuild": "npm run clean",
+    "build": "SET NODE_ENV=development && rollup -c",
     "push-local": "rollup -c --environment DEST:localserver",
-    "push-main": "rollup -c --environment DEST:main",
+    "push:of-sim": "SET NODE_ENV=development && npm run clean && rollup -c --environment DEST:official-sim",
+    "push:of-main": "SET NODE_ENV=production && npm run clean && rollup -c --environment DEST:official-main",
     "push:ap-sim": "SET NODE_ENV=development && npm run clean && rollup -c --environment DEST:animapix-sim",
     "push:ap-main": "SET NODE_ENV=production && npm run clean && rollup -c --environment DEST:animapix-main",
     "push-season": "rollup -c --environment DEST:season",
