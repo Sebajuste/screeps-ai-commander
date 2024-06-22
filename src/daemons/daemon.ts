@@ -15,6 +15,7 @@ export abstract class Daemon implements Actor {
   name: string;
   ref: string;
   hub: Hub;
+  roomName: string;
   room: Room;
   pos: RoomPosition;
   activity: RunActivity;
@@ -36,6 +37,7 @@ export abstract class Daemon implements Actor {
     this.name = name;
     this.ref = `${this.name}:${initializer.ref}`;
     this.hub = hub;
+    this.roomName = initializer.pos.roomName;
     this.room = initializer.room!;
     this.priority = priority;
     this.pos = initializer.pos;
@@ -49,7 +51,7 @@ export abstract class Daemon implements Actor {
   }
 
   get reachable(): boolean {
-    return Game.rooms[this.pos.roomName] != undefined;
+    return Game.rooms[this.roomName] != undefined;
   }
 
   get agents(): Agent[] {
@@ -184,7 +186,7 @@ export abstract class Daemon implements Actor {
     this.agentUsageReport = {};
     this.performanceReport = {};
     this.resourceFlowStats.clear();
-    this.room = Game.rooms[this.room.name];
+    this.room = Game.rooms[this.roomName];
   }
 
   preInit() {

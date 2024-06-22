@@ -66,6 +66,11 @@ export class HarvestDaemon extends Daemon {
 
   private haveEnnemy() {
 
+    if (!this.room) {
+      // If harvest flag is in empty screeps room, the room is not available
+      return false;
+    }
+
     if (this.pos.roomName == 'sim') {
       this.ennemyDetected = findClosestByLimitedRange(this.pos, this.hub.hostilesCreepsByRooms[this.room.name], 5) != null;
     } else {
@@ -124,12 +129,9 @@ export class HarvestDaemon extends Daemon {
       }
     }
 
-    if (this.initializer.link) {
-      if (this.initializer.link.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-        // Output the energy into Link
-        this.hub.linkNetwork.requestOutput(this.initializer.link);
-      }
-      return;
+    if (this.initializer.link && this.initializer.link.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+      // Output the energy into Link
+      this.hub.linkNetwork.requestOutput(this.initializer.link);
     }
 
     /*
@@ -142,18 +144,15 @@ export class HarvestDaemon extends Daemon {
     }
     */
 
-    // Output the energy droped
+
     if (this.drop && (!this.initializer.container || this.drop.amount > this.initializer.container.store.getUsedCapacity(RESOURCE_ENERGY))) {
+      // Output the energy droped
       console.log(`${this.print} request drop output`)
       this.hub.logisticsNetwork.requestOutput(this.drop, this.drop.resourceType);
     }
 
-    if (this.agents.length == 0) {
+    if (this.agents.length > 0 && !this._dropCache.isValid()) {
       // NO cache update id no agent is present
-      return;
-    }
-
-    if (!this._dropCache.isValid()) {
       this._dropCache.value = findClosestByLimitedRange(this.pos, this.hub.dropsByRooms[this.room.name], 1);
     }
 

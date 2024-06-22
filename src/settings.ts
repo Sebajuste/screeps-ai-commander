@@ -9,6 +9,10 @@ export const Settings = {
   cpuMax: Game.cpu.limit * 0.85, // 17 per hub
 
   cpuBucketMin: 400,
+  cpuLimitBucket: 2000,
+  cpuUnlimitBucket: 5000,
+
+  hubMinimalBucket: 1500,
 
   hubMaxHauler: 6,
   hubOutpostAmount: 3,
@@ -32,6 +36,10 @@ export const Settings = {
   hubTerminalEnergy: 5000,
 
   upgradeMinLinkEnergy: 500,
+  /**
+   * Minin energy require to fill upgrade
+   */
+  upgradeMinStorageEnergy: 10000,
 
   Username: _.first(_.filter(_.values(Game.structures), (structure: any) => structure['owner'] != undefined) as any[]).owner.username
 

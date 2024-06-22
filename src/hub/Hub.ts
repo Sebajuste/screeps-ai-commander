@@ -62,6 +62,9 @@ export enum RunLevel {
   MINIMAL = RunActivity.Always | RunActivity.LocalHarvest,
   // Minimal activity for energy and upgrade
   MINIMAL_UP = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Upgrade | RunActivity.Explore,
+
+  ENDGAME_INDUSTRY = RunActivity.Always | RunActivity.LocalHarvest | RunActivity.Miner | RunActivity.Industry | RunActivity.Upgrade,
+
   // Disable the hub  
   STANDBY = RunActivity.Always
 }
@@ -107,6 +110,8 @@ export class Hub {
   labs: StructureLab[];
   towers: StructureTower[];
   nuker?: StructureNuker;
+  powerSpawn?: StructurePowerSpawn;
+  observer?: StructureObserver;
 
   constructionSitesByRooms: Dictionary<ConstructionSite[]>;
   constructionSites: ConstructionSite[];
@@ -178,9 +183,6 @@ export class Hub {
 
     this._agents = [];
 
-
-
-
     this.roomPlanner = new BunkerRoomPlanner(this);
     this.creepCPU = 0;
 
@@ -237,6 +239,7 @@ export class Hub {
 
     this.controller = this.room.controller!;
     this.storage = this.room.storage;
+    this.terminal = this.room.terminal;
     this.spawns = _.filter(Game.spawns, spawn => spawn.room.name === this.name);
     this.pos = (this.storage || this.spawns[0] || this.controller).pos;
 
@@ -256,6 +259,8 @@ export class Hub {
 
     this.labs = _.filter(this.structuresByRooms[this.room.name] ?? [], structure => structure.structureType == STRUCTURE_LAB) as StructureLab[];
     this.nuker = _.find(this.structuresByRooms[this.room.name] ?? [], structure => structure.structureType == STRUCTURE_NUKER) as StructureNuker | undefined;
+    this.powerSpawn = _.find(this.structuresByRooms[this.room.name] ?? [], structure => structure.structureType == STRUCTURE_POWER_SPAWN) as StructurePowerSpawn | undefined;
+    this.observer = _.find(this.structuresByRooms[this.room.name] ?? [], structure => structure.structureType == STRUCTURE_OBSERVER) as StructureObserver | undefined;
 
     this.constructionSites = _.filter(Game.constructionSites, site => outputNames.includes(site.pos.roomName));
     this.constructionSitesByRooms = _.groupBy(this.constructionSites, site => site.pos.roomName);

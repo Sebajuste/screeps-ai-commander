@@ -12,7 +12,7 @@ import { Mem } from "memory/Memory";
 import { log } from "utils/log";
 import { MathRange } from "utils/math";
 
-const HAULER_DAEMON_PRIORITY = 50;
+const HAULER_DAEMON_PRIORITY = 150;
 
 
 export interface HaulerStat {

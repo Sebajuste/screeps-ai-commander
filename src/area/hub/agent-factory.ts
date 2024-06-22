@@ -126,46 +126,53 @@ export class AgentFactoryArea extends Area {
     return protoCreep;
   }
 
+  private getSpawnToUse(options: SpawnRequestOptions = {}): StructureSpawn | ERR_BUSY | undefined {
+    if (options.spawn) {
+      const spawnToUse = options.spawn;
+      if (spawnToUse.spawning) {
+        // Cannot get spawner requested
+        return ERR_BUSY;
+      }
+      _.remove(this.availableSpawns, spawn => spawn.id == spawnToUse!.id); // mark as used
+      return spawnToUse;
+    }
+
+    return this.availableSpawns.shift(); // mark as used
+  }
+
   private spawnAgent(protoCreep: ProtoCreep, options: SpawnRequestOptions = {}): number {
     // get a spawn to use
-    let spawnToUse: StructureSpawn | undefined;
-    if (options.spawn) {
-      spawnToUse = options.spawn;
-      if (spawnToUse.spawning) {
-        return ERR_SPECIFIED_SPAWN_BUSY;
-      } else {
-        _.remove(this.availableSpawns, spawn => spawn.id == spawnToUse!.id); // mark as used
-      }
-    } else {
-      spawnToUse = this.availableSpawns.shift();
-    }
-    if (spawnToUse) { // if there is a spawn, create the creep
+    const spawnToUse = this.getSpawnToUse(options);
 
-      if (this.hub.areas.hubCenter && this.hub.areas.hubCenter.coreSpawn && spawnToUse.id == this.hub.areas.hubCenter.coreSpawn.id && !options.directions) {
-        options.directions = [LEFT, TOP]; // don't spawn into the router spot
-      }
-
-      protoCreep.name = `${protoCreep.name}/${Game.time}`; // modify the creep name to make it unique
-      if (bodyCost(protoCreep.body) > this.room.energyCapacityAvailable) {
-        return ERR_ROOM_ENERGY_CAPACITY_NOT_ENOUGH;
-      }
-      //protoCreep.memory.data.origin = spawnToUse.pos.roomName;
-
-      const result = spawnToUse.spawnCreep(protoCreep.body, protoCreep.name, {
-        memory: protoCreep.memory,
-        // energyStructures: this.energyStructures,
-        directions: options.directions
-      });
-      // const result = OK;
-      if (result == OK) {
-        return result;
-      } else {
-        this.availableSpawns.unshift(spawnToUse); // return the spawn to the available spawns list
-        return result;
-      }
-    } else { // otherwise, return busy
+    if (!spawnToUse || spawnToUse == ERR_BUSY) {
       return ERR_BUSY;
     }
+
+
+    if (this.hub.areas.hubCenter && this.hub.areas.hubCenter.coreSpawn && this.hub.areas.hubCenter.coreSpawn.id === spawnToUse.id && !options.directions) {
+      // don't spawn into the router spot
+      options.directions = [LEFT, TOP];
+    }
+
+    protoCreep.name = `${protoCreep.name}/${Game.time}`; // modify the creep name to make it unique
+    if (bodyCost(protoCreep.body) > this.room.energyCapacityAvailable) {
+      return ERR_ROOM_ENERGY_CAPACITY_NOT_ENOUGH;
+    }
+    //protoCreep.memory.data.origin = spawnToUse.pos.roomName;
+
+    const result = spawnToUse.spawnCreep(protoCreep.body, protoCreep.name, {
+      memory: protoCreep.memory,
+      // energyStructures: this.energyStructures,
+      directions: options.directions
+    } as SpawnOptions);
+    // const result = OK;
+    if (result == OK) {
+      return result;
+    } else {
+      this.availableSpawns.unshift(spawnToUse); // return the spawn to the available spawns list
+      return result;
+    }
+
   }
 
   private spawnHighestPriorityAgent(): number | undefined {
@@ -201,7 +208,7 @@ export class AgentFactoryArea extends Area {
 
   private handleEnergyRequests(): void {
 
-    console.log('AGENT FACTORY ENEGY REQUEST')
+    console.log('AGENT FACTORY ENERGY REQUEST')
 
     const refillSpawns = _.filter(this.spawns, spawn => spawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
 

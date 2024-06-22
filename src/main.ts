@@ -103,6 +103,17 @@ function main() {
 
   if (!CPU.shouldRun()) return;
 
+  /*
+  if (Game.cpu.bucket == 10000) {
+    (Memory as any).generatePixel = true;
+    Game.cpu.generatePixel();
+  }
+  */
+
+  if (Game.cpu.bucket > 5000) {
+    delete (Memory as any).generatePixel;
+  }
+
   if (commander == null || Game.time % Settings.rebuildTick == 0) {
     log.info('REBUILD');
     commander = new Commander();
