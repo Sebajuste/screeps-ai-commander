@@ -14,6 +14,7 @@ export abstract class Directive implements Actor {
     name: string;
     ref: string;
     hub: Hub;
+    roomName: string;
     room: Room;
     pos: RoomPosition; 							// Flag position
     memory: FlagMemory;
@@ -31,6 +32,7 @@ export abstract class Directive implements Actor {
         this.name = flag.name;
         this.ref = includePos ? `${flag.name}@${flag.pos.roomName}` : `${flag.name}@${hub.name}`;
         this.hub = hub;
+        this.roomName = flag.pos.roomName;
         this.room = flag.room!;
         this.pos = flag.pos;
         this.commander = commander;
@@ -46,7 +48,7 @@ export abstract class Directive implements Actor {
     }
 
     get print(): string {
-        return `<a href="#!/room/${Game.shard.name}/${this.pos.roomName}">[${this.name}@${this.room.name}]</a>`;
+        return `<a href="#!/room/${Game.shard.name}/${this.pos.roomName}">[${this.name}@${this.roomName}]</a>`;
     }
 
     static getFlag(pos: RoomPosition, name?: string): Flag | null {
@@ -111,9 +113,9 @@ export abstract class Directive implements Actor {
             this.remove();
             return;
         }
-        this.room = Game.rooms[this.room.name];
+        this.room = Game.rooms[this.roomName];
         this.memory = this.flag.memory;
-        this.pos = flag.pos;
+        // this.pos = flag.pos;
         this.resourceFlowStats.clear();
     }
 

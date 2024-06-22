@@ -15,11 +15,19 @@ export function setHarvestFlag(hub: Hub, source: Source) {
   }
 }
 
-export function createHubFlags(room: Room) {
+export function createHubFlags(hub: Hub, room: Room) {
 
   Directive.createFlagIfNotPresent(new RoomPosition(46, 2, room.name), 'build', COLOR_BLUE);
 
-  Directive.createFlagIfNotPresent(new RoomPosition(44, 1, room.name), 'scout', COLOR_GREEN);
+  if (!hub.observer) {
+    Directive.createFlagIfNotPresent(new RoomPosition(44, 1, room.name), 'scout', COLOR_GREEN);
+  }
+
+  if (hub.agents.length < 1 && hub.level == 1) {
+    Directive.createFlagIfNotPresent(new RoomPosition(42, 2, room.name), 'bootstrap', COLOR_ORANGE);
+  } else {
+    Directive.removeFlagIfPresent(new RoomPosition(42, 2, room.name), 'bootstrap');
+  }
 
 }
 

@@ -319,6 +319,7 @@ export class HaulerRole {
       log.warning(`${agent.print} Request cannot be process ${request.resourceType} ${request.amount} ${request.target.pos}`)
 
     } else {
+      // No LogisticsRequest
 
       const resource = _.first(_.keys(agent.store)) as ResourceConstant | undefined;
       if (resource && hub.storage) {
@@ -326,7 +327,14 @@ export class HaulerRole {
         return [Tasks.transfer(hub.storage, resource)];
       }
 
+      if (agent.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && hub.areas.upgrade && hub.areas.upgrade.container && hub.areas.upgrade.container.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+        // Store energy for upgrade
+        return [Tasks.transfer(hub.areas.upgrade.container, RESOURCE_ENERGY)];
+      }
+
       log.debug(`${agent.print} Cannot found logistic request`);
+
+      return [Tasks.wait(new RoomPosition(25, 25, agent.room.name), 20)];
     }
 
     /*
@@ -543,11 +551,14 @@ export class SupplierRole {
       const drops = agent.pos.findInRange(hub.dropsByRooms[agent.room.name], 5, { filter: (drop: Resource) => drop.resourceType == RESOURCE_ENERGY });
       const drop = _.first(_.orderBy(drops, d => dropScore(agent, d), ['desc']));
 
+
       if (drop) {
-        _.remove(hub.dropsByRooms[agent.room.name], it => it == drop);
-        pipeline.push(Tasks.pickup(drop));
-        supplierEnergy += Math.min(drop.amount, agent.store.getFreeCapacity(RESOURCE_ENERGY));
+        log.debug(`Drop for supplier ${drop.pos}`)
+        // _.remove(hub.dropsByRooms[agent.room.name], it => it == drop);
+        // pipeline.push(Tasks.pickup(drop));
+        // supplierEnergy += Math.min(drop.amount, agent.store.getFreeCapacity(RESOURCE_ENERGY));
       }
+
 
       if (supplierEnergy < agent.store.getCapacity(RESOURCE_ENERGY)) {
 
@@ -561,14 +572,11 @@ export class SupplierRole {
 
     }
 
-    if (pipeline.length == 0 && supplierEnergy == 0) {
+    if (pipeline.length == 0 || supplierEnergy == 0) {
       // No take energy task is set
       return [];
     }
 
-    //if (agent.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-    // Supply Energy
-    // const sortedDestinations = _.orderBy(fillRequired, desination => destinationScore(agent, desination), ['desc']);
     const sortedDestinations = _.orderBy(fillRequired, desination => desination.pos.x * 50 + desination.pos.y, ['desc']);
 
     for (const destination of sortedDestinations) {
@@ -579,15 +587,6 @@ export class SupplierRole {
         break;
       }
     }
-
-    /*
-    const destination: any | undefined = _.first(sortedDestinations);
-    if (destination) {
-      _.remove(destinations, it => it == destination);
-      pipeline.push(Tasks.transfer(destination, RESOURCE_ENERGY));
-    }
-    */
-    // }
 
     return pipeline;
   }
@@ -623,10 +622,13 @@ export class UpgradeRole {
       tasks.push(Tasks.pickup(nearDrop));
     }
 
+    /*
     if (link && container && container.store.getUsedCapacity(RESOURCE_ENERGY) == 0) {
       // Dismantle container to avoid use energy to repair it
       tasks.push(Tasks.dismantle(container));
-    } else if (validContainer) {
+    } else
+    */
+    if (validContainer) {
       // Take energy from tructure
       if (container && container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
         tasks.push(Tasks.withdraw(container, RESOURCE_ENERGY));

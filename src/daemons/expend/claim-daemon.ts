@@ -1,4 +1,8 @@
 import { Actor } from "Actor";
+import { AgentRequestOptions, AgentSetup } from "agent/Agent";
+import { selectBodyParts } from "agent/agent-builder";
+import { AGENT_PRIORITIES, CLAIMER_TEMPLATE } from "agent/agent-setup";
+import { ClaimerRole } from "agent/roles/claimer";
 import { Daemon } from "daemons";
 import { Hub, RunActivity } from "hub/Hub";
 
@@ -9,12 +13,33 @@ export class ClaimDaemon extends Daemon {
     super(hub, initializer, 'claim', RunActivity.Always);
   }
 
+  private spawnHandler() {
+
+    const options: AgentRequestOptions = {
+      priority: AGENT_PRIORITIES.claimer
+    };
+
+    const bodyParts = selectBodyParts(CLAIMER_TEMPLATE, this.hub.room.energyAvailable);
+
+    const setup: AgentSetup = {
+      role: 'upgrader',
+      bodyParts: bodyParts
+    };
+
+    this.wishList(1, setup, options);
+
+  }
+
   init(): void {
-    throw new Error("Method not implemented.");
+
+    this.spawnHandler();
+
   }
 
   run(): void {
-    throw new Error("Method not implemented.");
+
+    this.autoRun(this.agents, agent => ClaimerRole.pipeline(this.pos.roomName));
+
   }
 
 }

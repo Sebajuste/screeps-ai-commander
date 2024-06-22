@@ -42,37 +42,81 @@ export class RouterDaemon extends Daemon {
     const link = this.commandCenter.link;
     const storage = this.commandCenter.storage;
 
-    const takeResourceTaskHandler = (resource: ResourceConstant, amount?: number) => {
-
-      const drops = router.pos.lookFor(LOOK_RESOURCES);
-      const resourceDrop = _.find(drops, drop => drop.resourceType == resource);
-      if (resourceDrop) {
-        // Take from Drop
-        return Tasks.pickup(resourceDrop);
+    let _energyDroped: Resource | null | undefined = undefined;
+    const getEnergyDroped = (): Resource | null => {
+      if (_energyDroped !== undefined && _energyDroped !== null) {
+        // Is Init
+        return _energyDroped;
       }
+      if (_energyDroped === null) {
+        // Init but not found
+        return null;
+      }
+      const drops = router.pos.lookFor(LOOK_RESOURCES);
+      const resourceDrop = _.find(drops, drop => drop.resourceType == RESOURCE_ENERGY);
+      if (resourceDrop) {
+        return _energyDroped = resourceDrop;
+      }
+      return _energyDroped = null;
+    }
+
+    let _energyAvailable: number | null = null;
+    const getEnergyAvailable = () => {
+      if (_energyAvailable !== null) {
+        return _energyAvailable;
+      }
+      return _energyAvailable = storage.store.getUsedCapacity(RESOURCE_ENERGY) + (getEnergyDroped()?.amount ?? 0);
+    };
+
+    const takeResourcePipelineHandler = (resource: ResourceConstant, amount: number) => {
+
+      const pipeline: TaskPipeline = [];
+
+      let freeCapacity = router.store.getFreeCapacity(resource);
+
+      const resourceDrop = getEnergyDroped();
+
+      if (resourceDrop && amount > 0) {
+        // Take from Drop
+        pipeline.push(Tasks.pickup(resourceDrop));
+        const take = Math.min(freeCapacity, resourceDrop.amount);
+        amount = amount - take;
+        freeCapacity = freeCapacity - take;
+      }
+
 
       const tombstones = router.pos.lookFor(LOOK_TOMBSTONES);
       const tombstone = _.find(tombstones, tombstone => tombstone.store.getUsedCapacity(resource) > 0);
-      if (tombstone) {
+      if (tombstone && amount > 0 && freeCapacity > 0) {
         // Take from Tombstone
-        return Tasks.withdraw(tombstone, resource);
+        pipeline.push(Tasks.withdraw(tombstone, resource));
+        const take = Math.min(freeCapacity, tombstone.store.getUsedCapacity(resource));
+        amount = amount - take;
+        freeCapacity = freeCapacity - take;
       }
 
-      if (resource == RESOURCE_ENERGY && link && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy) {
+      if (resource == RESOURCE_ENERGY && link && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && amount > 0 && freeCapacity > 0) {
         // Take energy from link
-        return Tasks.withdraw(link, resource, Math.min(amount ?? 1000, Settings.hubCenterMinLinkEnergy - link.store.getUsedCapacity(RESOURCE_ENERGY)));
+        const quantity = Math.min(amount ?? 1000, Settings.hubCenterMinLinkEnergy - link.store.getUsedCapacity(RESOURCE_ENERGY));
+        const take = Math.min(freeCapacity, quantity);
+        pipeline.push(Tasks.withdraw(link, resource, take));
+        amount = amount - take;
+        freeCapacity = freeCapacity - take;
       }
 
-      if (storage && storage.store.getUsedCapacity(resource) > 0) {
+      if (storage && storage.store.getUsedCapacity(resource) > 0 && amount > 0 && freeCapacity > 0) {
         // Take resource from storage
-        return Tasks.withdraw(storage, resource, amount);
+        const take = Math.min(freeCapacity, amount);
+        pipeline.push(Tasks.withdraw(storage, resource, take));
+        amount = amount - take;
+        freeCapacity = freeCapacity - take;
       }
-      return null;
+
+      return pipeline;
     };
 
     const fillResourceHandler: (structure: StoreStructure, resource: ResourceConstant, quantity?: number) => TaskPipeline = (structure, resource = RESOURCE_ENERGY, quantity?: number) => {
 
-      // const storeAmount = structure.store.getUsedCapacity(resource) ?? 0;
       const fillAmount = quantity ? Math.min(quantity, structure.store.getFreeCapacity(resource) ?? 0) : structure.store.getFreeCapacity(resource) ?? 0;
 
       if (fillAmount == 0) {
@@ -80,68 +124,29 @@ export class RouterDaemon extends Daemon {
         return [];
       }
 
-      /*
-      if (storeAmount > (quantity ?? structure.store.getCapacity(resource) ?? 0) || structure.store.getFreeCapacity(resource) == 0) {
-        // No Fill is required
-        return [];
-      }
-      */
-
       const routerAmount = router.store.getUsedCapacity(resource) ?? 0;
 
       const pipeline: TaskPipeline = [];
 
-      if (routerAmount < fillAmount) {
+      if (routerAmount < fillAmount && router.store.getFreeCapacity(resource) > 0) {
         // Need resource from Link or Storage
         const amount = Math.abs(fillAmount - routerAmount);
-        const task = takeResourceTaskHandler(resource, amount);
-        if (task) {
-          pipeline.push(task);
+        const takePipeline = takeResourcePipelineHandler(resource, amount);
+        if (takePipeline.length == 0) {
+          return [];
         }
+        pipeline.push(...takePipeline);
       }
 
-
-
-      // const commanderAmount = commander.store.getUsedCapacity(resource);
-
-      if (routerAmount > 0) {
-        // Refuel structure
-        // const amount = (quantity != undefined) ? (storeAmount != undefined ? quantity - storeAmount : quantity) : undefined;
-        pipeline.push(Tasks.transfer(structure as any, resource, fillAmount));
-      }
-
-
-
-
-      /*
-      if (commander.store.getUsedCapacity(resource) <= (amount ?? 0)) {
-          // Need resource from Link or Storage
-          const task = takeResourceTaskHandler(resource, (amount == undefined) ? undefined : amount - commander.store.getUsedCapacity(resource));
-          if (task) {
-              return task;
-          }
-      }
-
-      if (amount == undefined ? commander.store.getFreeCapacity(resource) == 0 : commander.store.getUsedCapacity(resource) >= amount) {
-          // Refuel structure
-          return Tasks.transfer(structure as any, resource, amount);
-      }
-      */
+      pipeline.push(Tasks.transfer(structure as any, resource));
 
       return pipeline;
     };
 
-    // Move to correct position to command
-    /*
-    if (!commander.creep.pos.isEqualTo(this.commandCenter.pos)) {
-      return [Tasks.wait(this.commandCenter.pos)];
-    }
-    */
 
     /**
      * Keep Tower ready to use
      */
-
     const tower = _.first(_.orderBy(this.commandCenter.towers, (tower: StructureTower) => tower.store.getUsedCapacity(RESOURCE_ENERGY), ['asc'])) as StructureTower | undefined;
     if (tower && tower.store.getFreeCapacity(RESOURCE_ENERGY) >= 300) {
       // Tower need refuel
@@ -158,66 +163,19 @@ export class RouterDaemon extends Daemon {
     }
 
     /**
-     * Keep PowerSpawn ready to use
-     */
-    /*
-    const powerSpawn = this.commandCenter.powerSpawn;
-    if (powerSpawn && powerSpawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-      // Spawn need refuel
-      const task = fillResourceHandler(powerSpawn as any, RESOURCE_ENERGY);
-      if (task) {
-        return task;
-      }
-    }
-    */
-
-    /**
-     * Keep Terminal ready to use
-     */
-    const terminal = this.commandCenter.terminal;
-    if (terminal && terminal.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubTerminalEnergy && storage && storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000) {
-      // Fill energy if required, and enough available from Storage
-      return fillResourceHandler(terminal as any, RESOURCE_ENERGY, Settings.hubTerminalEnergy - terminal.store.getUsedCapacity(RESOURCE_ENERGY));
-    }
-
-    /**
-     * Keep Nuker ready to use
-     */
-    /*
-    const nuker = this.commandCenter.nuker;
-    if (nuker && nuker.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && storage && storage.store.getUsedCapacity(RESOURCE_ENERGY) > 50000) {
-        // Fill nuker with Energy
-        const task = fillResourceHandler(nuker as any, RESOURCE_ENERGY);
-        if (task) {
-            return task;
-        }
-    }
-
-    if (nuker && nuker.store.getFreeCapacity(RESOURCE_GHODIUM) > 0) {
-        // Fill nuker with Ghodium
-        const task = fillResourceHandler(nuker as any, RESOURCE_GHODIUM);
-        if (task) {
-            return task;
-        }
-    }
-    */
-
-    /**
      * Keep Link ready to use
      */
     if (link) {
       if (link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && router.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
         // Vacuum link
-
         const amount = Math.min(link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy, router.store.getFreeCapacity(RESOURCE_ENERGY));
         return [Tasks.withdraw(link, RESOURCE_ENERGY, amount), Tasks.transfer(storage, RESOURCE_ENERGY)];
       }
 
-      if (link.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubCenterMinLinkEnergy && storage && storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000) {
+      if (link.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubCenterMinLinkEnergy && storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000) {
         // Fill Link
 
         const fillAmount = Settings.hubCenterMinLinkEnergy - link.store.getUsedCapacity(RESOURCE_ENERGY);
-
         const takeAmount = Math.max(0, fillAmount - router.store.getUsedCapacity(RESOURCE_ENERGY));
         const pipeline: TaskPipeline = [];
 
@@ -229,6 +187,38 @@ export class RouterDaemon extends Daemon {
       }
     }
 
+    /**
+     * Keep Terminal ready to use
+     */
+    const terminal = this.commandCenter.terminal;
+    if (terminal && terminal.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubTerminalEnergy && getEnergyAvailable() > 10000) {
+      // Fill energy if required, and enough available from Storage
+      return fillResourceHandler(terminal as any, RESOURCE_ENERGY, Settings.hubTerminalEnergy - terminal.store.getUsedCapacity(RESOURCE_ENERGY));
+    }
+
+    /**
+     * Keep PowerSpawn ready to use
+     */
+    const powerSpawn = this.commandCenter.powerSpawn;
+    if (powerSpawn && powerSpawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && getEnergyAvailable() > 20000) {
+      // Spawn need refuel
+      return fillResourceHandler(powerSpawn as any, RESOURCE_ENERGY);
+    }
+
+    /**
+     * Keep Nuker ready to use
+     */
+    const nuker = this.commandCenter.nuker;
+    if (nuker && nuker.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && getEnergyAvailable() > 50000) {
+      // Fill nuker with Energy
+      log.warning(`>> Fill nuker getEnergyAvailable: ${getEnergyAvailable()}`)
+      return fillResourceHandler(nuker as any, RESOURCE_ENERGY);
+    }
+
+    if (nuker && nuker.store.getFreeCapacity(RESOURCE_GHODIUM) > 0 && storage.store.getUsedCapacity(RESOURCE_GHODIUM) > 5000) {
+      // Fill nuker with Ghodium
+      return fillResourceHandler(nuker as any, RESOURCE_GHODIUM);
+    }
 
 
     /**
@@ -263,7 +253,7 @@ export class RouterDaemon extends Daemon {
     /**
      * Save Energy by storing it
      */
-    if (storage && router.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && storage.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubStorageMaxEnergy) {
+    if (router.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && storage && storage.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubStorageMaxEnergy) {
       // Fill storage
       return [Tasks.transfer(storage, RESOURCE_ENERGY)];
     } else if (router.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
@@ -280,12 +270,13 @@ export class RouterDaemon extends Daemon {
 
       // Find imported and storable resource
       const importedResource = _.find(terminalResources, resource => {
+        if (resource == RESOURCE_ENERGY) {
+          return false;
+        }
         const isImported = _.find(this.hub.minerals, mineral => mineral.mineralType == resource) != undefined;
         const storageFull = storage.store.getUsedCapacity(resource) >= Settings.hubStorageMaxResource
         return !isImported && !storageFull;
       });
-
-
 
       if (importedResource) {
         // Imported resource is present in the terminal
@@ -376,7 +367,7 @@ export class RouterDaemon extends Daemon {
 
   run(): void {
 
-    this.autoRun(this.agents, c => this.createCommanderTask(c));
+    this.autoRun(this.agents, agent => this.createCommanderTask(agent));
 
   }
 

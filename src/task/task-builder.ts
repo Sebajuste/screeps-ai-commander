@@ -1,6 +1,7 @@
-import { Task } from "./Task";
+import { Task, TaskTarget } from "./Task";
 import { AttackTask } from "./tasks/AttackTask";
 import { BuildTask } from "./tasks/BuildTask";
+import { ClaimTask } from "./tasks/ClaimTask";
 import { DismantleTask } from "./tasks/DismantleTask";
 import { DropTask } from "./tasks/DropTask";
 import { HarvestTask } from "./tasks/HarvestTask";
@@ -56,6 +57,10 @@ export class Tasks {
 
   static build(target: ConstructionSite) {
     return new BuildTask(target);
+  }
+
+  static claim(target: TaskTarget) {
+    return new ClaimTask(target);
   }
 
   static dismantle(structure: Structure<StructureConstant>) {

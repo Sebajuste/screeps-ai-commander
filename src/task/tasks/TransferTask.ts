@@ -1,5 +1,7 @@
 import { Task } from "task/Task";
 import { StoreStructure } from "task/task-builder";
+import { printCreep } from "utils/creep-utils";
+import { log } from "utils/log";
 
 export const TRANSFER_TASK_NAME = 'transfer';
 
@@ -16,7 +18,7 @@ export class TransferTask extends Task {
     const storeAmount = (this.target as StoreStructure).store.getFreeCapacity(this.options.resourceType) ?? 0;
     return creepAmount == 0 || storeAmount <= creepAmount;
     */
-    return true;
+    return true; // One shot action
 
   }
   action(creep: Creep): number {

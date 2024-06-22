@@ -8,6 +8,7 @@ import { Hub, RunActivity, RunLevel } from "hub/Hub";
 import { BuildPriorities } from "hub/room-planner/room-priorities-structures";
 import _ from "lodash";
 import { Mem, MemCacheObject } from "memory/Memory";
+import { Tasks } from "task/task-builder";
 import { log } from "utils/log";
 import { findClosestByLimitedRange, getMultiRoomRange } from "utils/util-pos";
 
@@ -210,7 +211,7 @@ export class BuildDaemon extends Daemon {
         return BuilderRole.pipeline(this.hub, agent, this.constructionSite);
       }
 
-      return [];
+      return [Tasks.wait(new RoomPosition(25, 25, this.roomName))];
     });
 
   }

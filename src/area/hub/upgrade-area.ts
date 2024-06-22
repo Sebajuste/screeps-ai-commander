@@ -69,6 +69,9 @@ export class UpgradeArea extends Area {
   }
 
   get link(): StructureLink | null | undefined {
+    if (!this._link) {
+      this._link = findAtPos(this.linkPos, this.hub.links ?? []);
+    }
     return this._link;
   }
 

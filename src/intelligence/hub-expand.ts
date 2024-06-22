@@ -18,49 +18,72 @@ const MINERAL_PRIORITY: MineralConstant[] = [
  * @param searchMineral The mineral required to search
  * @returns 
  */
-function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, searchMineral?: MineralConstant) {
+function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, searchMineral?: MineralConstant): boolean {
 
-  log.debug(`> isRoomEligible ${roomName} for ${searchMineral}`);
+  // log.debug(`> isRoomEligible ${roomName} for ${searchMineral}`);
 
   if (hubMap[roomName] != undefined) {
-    log.debug(`> hub already exists`)
+    log.debug(`> hub ${roomName} already exists`)
     return false;
   }
 
   const exploration = Exploration.exploration();
 
   if (!exploration.hasRoom(roomName)) {
-    log.debug(`> unexplored`)
+    log.debug(`> ${roomName} unexplored`)
     return false;
   }
 
-  const roomInfo = Exploration.exploration().getRoom(roomName)!;
+  const roomInfo = exploration.getRoom(roomName)!;
+
+  if (Game.time - roomInfo.tick > 1500000) {
+    return false;
+  }
 
   if (_.find(roomInfo.minerals, info => info.type == searchMineral!) == undefined) {
-    log.debug(`> no mineral searched`)
+    // log.debug(`> ${roomName} no mineral ${searchMineral} searched`)
     return false;
   }
 
   if (roomInfo.sourceCount < 2 || roomInfo.haveEnnemy) {
-    log.debug(`> No enough source or have ennemy`)
+    log.debug(`> ${roomName} No enough source ${roomInfo.sourceCount} or have ennemy ${roomInfo.haveEnnemy}`)
     return false;
   }
 
   if ((roomInfo.maxWallDistance ?? 0) < 7) {
-    log.debug(`> maxWallDistance to low`)
+    log.debug(`> ${roomName} maxWallDistance to low ${roomInfo.maxWallDistance}`)
     return false;
   }
 
+  if (roomInfo.controlledBy !== undefined) {
+    // Already controlled
+    return false;
 
+  }
 
   log.debug('> OK')
 
   return true;
 }
 
-export function analyseNextHub(hubs: { [roomName: string]: Hub }, hubMap: { [name: string]: string }) {
 
-  log.debug(`analyseNextHub`);
+function searchNextHub(mineralTarget: MineralConstant, hubMap: { [name: string]: string }) {
+  const exploration = Exploration.exploration();
+
+  // Search the next room to create new HUB
+  const nextRoom = _.chain(exploration.getRooms())//
+    .keys()//
+    .filter(roomName => isRoomEligible(roomName, hubMap, mineralTarget))//
+    .first()//
+    // .orderBy() // Nearest as builder hub
+    .value();
+
+  log.debug(`> Next room : ${nextRoom}`);
+
+  return nextRoom;
+}
+
+export function analyseNextHub(hubs: { [roomName: string]: Hub }, hubMap: { [name: string]: string }): string | null {
 
   // Create list of current available minerals
   const minerals = _.chain(hubs)//
@@ -71,30 +94,27 @@ export function analyseNextHub(hubs: { [roomName: string]: Hub }, hubMap: { [nam
     .value();
 
   // Search the next mineral required
-  //const searchMineral = _.first(_.filter(MINERAL_PRIORITY, resource => !minerals.includes(resource)));
-  const searchMineral = _.first(_.difference(MINERAL_PRIORITY, minerals));
+  const mineralTargets = _.difference(MINERAL_PRIORITY, minerals);
 
-  if (!searchMineral) {
-    log.debug(`> No mineral found`);
-    return;
-  }
+  do {
+    const searchMineral = mineralTargets.shift();
 
-  console.log(`> minerals: `, minerals, `, searchMineral: ${searchMineral}`)
+    // console.log(`> minerals: `, minerals, `, searchMineral: ${searchMineral}`)
 
-  const exploration = Exploration.exploration();
+    if (!searchMineral) {
+      log.debug(`> No mineral found`);
+      return null;
+    }
 
-  // Search the next room to create new HUB
-  const nextRoom = _.chain(exploration.getRooms())//
-    .keys()//
-    .filter(roomName => isRoomEligible(roomName, hubMap, searchMineral))//
-    .first()//
-    // .orderBy() // Nearest as builder hub
-    .value();
+    const nextRoom = searchNextHub(searchMineral, hubMap);
 
-  log.debug(`> Next room : ${nextRoom}`);
+    if (nextRoom) {
+      return nextRoom;
+    }
 
-  return nextRoom;
+  } while (mineralTargets.length > 0);
 
+  return null;
 }
 
 

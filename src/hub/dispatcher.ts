@@ -61,13 +61,23 @@ export class Dispatcher {
 
   isDaemonSuspended(daemon: Daemon) {
     if (daemon && this.memory.suspendUntil[daemon.ref]) {
+      /*
       if (Game.time > this.memory.suspendUntil[daemon.ref]) {
         this.activeDaemon(daemon);
         return false;
       }
+      */
       return true;
     }
     return false;
+  }
+
+  updateDaemonSuspend(daemon: Daemon) {
+    if (daemon && this.isDaemonSuspended(daemon)) {
+      if (Game.time > this.memory.suspendUntil[daemon.ref]) {
+        this.activeDaemon(daemon);
+      }
+    }
   }
 
   findActiveDaemonByName(name: string): Daemon | undefined {
@@ -203,6 +213,9 @@ export class Dispatcher {
   }
 
   init() {
+
+    this.daemons.forEach(daemon => this.updateDaemonSuspend(daemon));
+
     this.directives.forEach(directive => pushProcess(this.hub.processStack, () => {
       const start = Game.cpu.getUsed();
       directive.init();

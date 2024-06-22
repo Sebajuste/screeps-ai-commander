@@ -6,9 +6,9 @@ import _ from "lodash";
 import { dropScore, harvestSourceScore, sourceScore } from "./roles-utils";
 
 
-export class Bootstrap {
+export class BootstrapRole {
 
-  static pipeline(hub: Hub, agent: Agent, constructionSite: ConstructionSite): TaskPipeline {
+  static pipeline(hub: Hub, agent: Agent): TaskPipeline {
 
     const pipeline: TaskPipeline = [];
 

@@ -82,9 +82,9 @@ export class CPU {
 
   run(scheduler: Scheduler): void {
 
-    if (Game.cpu.bucket < 9000) {
+    if (Game.cpu.bucket < Settings.cpuLimitBucket && !(Memory as any).generatePixel) {
       this.limitMode = true;
-    } else if (Game.cpu.bucket >= 10000) {
+    } else if (Game.cpu.bucket >= Settings.cpuUnlimitBucket) {
       this.limitMode = false;
     }
 
