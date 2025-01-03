@@ -6,6 +6,7 @@ import { log } from "utils/log";
 import _ from "lodash";
 import { TaskPipeline } from "task/task-pipeline";
 import { Pathing } from "utils/pathing";
+import { PROCESS_PRIORITY_NORMAL } from "cpu/process";
 
 export const DEFAULT_PRESPAWN = 50;
 export const MAX_SPAWN_REQUESTS = 100;
@@ -23,8 +24,6 @@ export abstract class Daemon implements Actor {
   memory: Memory | FlagMemory;
   resourceFlowStats: ResourceFlowStats;
 
-
-
   priority: number;
 
   private _agentByRole?: { [name: string]: Agent[] }; // creeps cache
@@ -33,7 +32,7 @@ export abstract class Daemon implements Actor {
 
   private lastRefreshTime: number;
 
-  constructor(hub: Hub, initializer: Actor, name: string, activity: RunActivity, priority: number = 100) {
+  constructor(hub: Hub, initializer: Actor, name: string, activity: RunActivity, priority: number = PROCESS_PRIORITY_NORMAL) {
     this.name = name;
     this.ref = `${this.name}:${initializer.ref}`;
     this.hub = hub;
@@ -110,7 +109,7 @@ export abstract class Daemon implements Actor {
 
   lifetimeFilter(creeps: (Creep | Agent)[], prespawn = DEFAULT_PRESPAWN, spawnDistance?: number): (Creep | Agent)[] {
 
-    const spawner = this.hub.areas.agentFactory;
+    // const spawner = this.hub.areas.agentFactory;
 
     if (!spawnDistance) {
 
@@ -151,9 +150,9 @@ export abstract class Daemon implements Actor {
       creepQuantity = (this.agentsByRole[setup.role] ?? []).length;
     }
 
-    // log.debug(`${this.print} wishList creepQuantity: ${creepQuantity}`);
-
     const spawnQuantity = quantity - creepQuantity;
+
+    log.debug(`${this.print} wishList creepQuantity: ${creepQuantity}, spawnQuantity: ${spawnQuantity}`);
 
     if (spawnQuantity > 0) {
 
@@ -196,6 +195,5 @@ export abstract class Daemon implements Actor {
   abstract init(): void;
 
   abstract run(): void;
-
 
 }

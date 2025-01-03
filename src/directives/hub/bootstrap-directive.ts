@@ -1,3 +1,4 @@
+import { PROCESS_PRIORITY_HIGHT } from "cpu/process";
 import { BootstrapDaemon } from "daemons/civilian/bootstrap-daemon";
 import { Directive } from "directives/Directive";
 
@@ -8,7 +9,7 @@ export class BootstrapDirective extends Directive {
   };
 
   spawnDaemons(): void {
-    this.daemons.bootstrap = new BootstrapDaemon(this.hub, this);
+    this.daemons.bootstrap = new BootstrapDaemon(this.hub, this, PROCESS_PRIORITY_HIGHT);
   }
 
   init(): void {
@@ -17,9 +18,11 @@ export class BootstrapDirective extends Directive {
 
   run(): void {
 
-    if (this.hub.agents.length > 1) {
+    /*
+    if (this.hub.agents.length > 2) {
       this.hub.dispatcher.suspendDaemon(this.daemons.bootstrap, 100);
     }
+    */
 
   }
 

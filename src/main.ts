@@ -33,7 +33,7 @@ import { deserializeTasks, serializeTasks } from "task/task-initializer";
 import { BuildDaemon, Daemon, HarvestDaemon, HaulerDaemon, ProbeDaemon, UpgradeDaemon } from "daemons";
 import { Scheduler } from "cpu/scheduler";
 
-let commander: any = null;
+let commander: Commander | null = null;
 
 function cleanMemory() {
   for (const name in Memory.creeps) {

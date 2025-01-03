@@ -4,14 +4,17 @@ import { AGENT_PRIORITIES } from "agent/agent-setup";
 import { BootstrapRole } from "agent/roles";
 import { Daemon } from "daemons";
 import { Hub, RunActivity } from "hub/Hub";
+import { log } from "utils/log";
 
 export class BootstrapDaemon extends Daemon {
 
-  constructor(hub: Hub, initializer: Actor) {
-    super(hub, initializer, 'boostrap', RunActivity.Always);
+  constructor(hub: Hub, initializer: Actor, priority?: number) {
+    super(hub, initializer, 'boostrap', RunActivity.Always, priority);
   }
 
   private spawnHandler() {
+
+    log.debug('BootstrapDaemon::spawnHandler')
 
     const options: AgentRequestOptions = {
       priority: AGENT_PRIORITIES.bootstrap
@@ -32,7 +35,7 @@ export class BootstrapDaemon extends Daemon {
 
   init(): void {
 
-    if (this.hub.agents.length <= 1) {
+    if (this.hub.agents.length < 2) {
       this.spawnHandler();
     }
 

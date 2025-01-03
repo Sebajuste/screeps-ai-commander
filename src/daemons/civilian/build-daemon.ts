@@ -4,7 +4,7 @@ import { selectBodyParts } from "agent/agent-builder";
 import { AGENT_PRIORITIES, BUIDER_TEMPLATE } from "agent/agent-setup";
 import { BuilderRole, RepairRole } from "agent/roles/roles";
 import { Daemon } from "daemons/daemon";
-import { Hub, RunActivity, RunLevel } from "hub/Hub";
+import { Hub, RunActivity } from "hub/Hub";
 import { BuildPriorities } from "hub/room-planner/room-priorities-structures";
 import _ from "lodash";
 import { Mem, MemCacheObject } from "memory/Memory";

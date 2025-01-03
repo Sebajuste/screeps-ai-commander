@@ -18,37 +18,84 @@ export interface ExecutionProcess {
 
 export class Scheduler {
 
+  private _processStacks: ProcessStack[];
+
   private _processGroups: ProcessGroup[];
 
-  private _iterator: number;
+  private _stackIterator: number;
 
   static nextPID: number = 0;
 
   static currentId: number;
 
   empty() {
-    return this._processGroups.length = 0;
+    // return this._processGroups.length = 0;
+    return this._processStacks.length = 0;
   }
 
   init(processStacks: ProcessStack[]) {
-    this._processGroups = _.map(processStacks, stack => ({ stack: stack.sort((p1, p2) => p1.priority - p2.priority), count: stack.length, totalTime: 0 } as ProcessGroup));
+    this._processStacks = processStacks;
+
+    this._processGroups = _.map(processStacks, stack => ({stack: stack, count: stack.length, totalTime: 0}));
+
+    // this._processGroups = _.map(processStacks, stack => ({ stack: stack.sort((p1, p2) => p1.priority - p2.priority), count: stack.length, totalTime: 0 } as ProcessGroup));
     Scheduler.currentId = 0;
-    this._iterator = 0;
+    this._stackIterator = 0;
   }
 
   taskCount(): number {
 
-    return _.sum(_.map(this._processGroups, group => group.stack.length));
+    // return _.sum(_.map(this._processGroups, group => group.stack.length));
+    return _.sum(_.map(this._processStacks, stack => stack.length));
 
   }
 
-  nextProcess(): ExecutionProcess | null {
+  private nextStack(): ProcessStack | null {
 
-    const index = (this._iterator) % this._processGroups.length;
-    const group = this._processGroups[index];
+    const startIterator = this._stackIterator;
+
+    let stack = [];
+
+    do {
+      stack = this._processStacks[this._stackIterator];
+      this._stackIterator = (this._stackIterator + 1) % this._processStacks.length; // Go to next stack
+
+      if( this._stackIterator == startIterator && stack.length == 0) {
+        // All stacks was checked, and are empty
+        return null;
+      }
+
+    } while(stack.length == 0);
+
+    return stack;
+  }
+
+
+  nextProcess(): Process | null {
+
+    Scheduler.currentId = 0;
+
+    const stack = this.nextStack();
+
+    if( !stack) {
+      return null;
+    }
+
+    const process = stack.shift();
+
+    if (!process) {
+      return null;
+    }
+
+    Scheduler.currentId = process.pid;
+
+    return process;
+
+    /*
+    const groupIndex = (this._iterator) % this._processStacks.length;
+    const stack = this._processStacks[groupIndex];
 
     if (!group) {
-      Scheduler.currentId = 0;
       return null;
     }
 
@@ -56,31 +103,31 @@ export class Scheduler {
       // If a process has had new process
       group.stack.sort((p1, p2) => p1.priority - p2.priority);
     }
+    
 
     const process = group.stack.shift();
 
     group.count = group.stack.length; // Update process counter
 
     if (!process) {
-      Scheduler.currentId = 0;
       return null;
     }
 
     if (group.stack.length == 0) {
-      // Remove empty stack
-      this._processGroups.splice(index, 1);
+      // Current group is empty
+      // this._processGroups.splice(groupIndex, 1); // Remove empty stack
     }
 
-    this._iterator++;
+    this._iterator++; // Go to next group
 
     Scheduler.currentId = process.pid;
 
     return { process: process, group: group } as ExecutionProcess;
-
+    */
   }
 
-  stopPreviousGroup(): number {
-    const index = (this._iterator - 1) % this._processGroups.length;
+  private stopPreviousGroup(): number {
+    const index = (this._stackIterator - 1) % this._processGroups.length;
     if (!this._processGroups[index]) {
       return 0;
     }

@@ -27,13 +27,13 @@ export interface SpawnRequest {
   options?: SpawnRequestOptions;		// options
 }
 
-interface ProtoCreep {
+export interface ProtoCreep {
   name: string;
   body: BodyPartConstant[];
   memory: CreepMemory;
 }
 
-interface SpawnOrder {
+export interface SpawnOrder {
   protoCreep: ProtoCreep;
   options?: SpawnRequestOptions; // SpawnOptions
 }
@@ -221,6 +221,8 @@ export class AgentFactoryArea extends Area {
 
   private handleSpawns(): void {
 
+    log.debug(`AgentFactoryArea::handleSpawns`);
+
     // Spawn all queued creeps that you can
     while (this.availableSpawns.length > 0) {
       const result = this.spawnHighestPriorityAgent();
@@ -315,6 +317,7 @@ export class AgentFactoryArea extends Area {
   }
 
   run(): void {
+    log.debug(`AgentFactoryArea::run`)
     this.handleSpawns();
     this.recordStats();
   }

@@ -129,7 +129,7 @@ export class UpgradeArea extends Area {
 
     if (this.link && this.container) {
       // Dismantle obselete container
-      this.hub.roomPlanner.addDismantle(this.container);
+      // this.hub.roomPlanner.addDismantle(this.container);
     }
 
   }

@@ -5,7 +5,7 @@ export const TASK_CLAIM_NAME = 'claim';
 export class ClaimTask extends Task {
 
   constructor(target: TaskTarget) {
-    super(TASK_CLAIM_NAME, target, { oneShoot: false, targetRange: 3 })
+    super(TASK_CLAIM_NAME, target, { oneShoot: false, targetRange: 1 })
   }
 
   isFinished(creep: Creep): boolean {

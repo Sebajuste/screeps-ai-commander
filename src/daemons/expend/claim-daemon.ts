@@ -22,7 +22,7 @@ export class ClaimDaemon extends Daemon {
     const bodyParts = selectBodyParts(CLAIMER_TEMPLATE, this.hub.room.energyAvailable);
 
     const setup: AgentSetup = {
-      role: 'upgrader',
+      role: 'claimer',
       bodyParts: bodyParts
     };
 
@@ -32,7 +32,10 @@ export class ClaimDaemon extends Daemon {
 
   init(): void {
 
-    this.spawnHandler();
+    if( Game.rooms[this.pos.roomName] && ! Game.rooms[this.pos.roomName].controller?.my )  {
+      // Avoid spawn if room is controlled
+      this.spawnHandler();
+    }
 
   }
 

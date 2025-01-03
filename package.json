@@ -18,7 +18,7 @@
     "push:ap-sim": "SET NODE_ENV=development && npm run clean && rollup -c --environment DEST:animapix-sim",
     "push:ap-main": "SET NODE_ENV=production && npm run clean && rollup -c --environment DEST:animapix-main",
     "push:sf-sim": "SET NODE_ENV=production && npm run clean && rollup -c --environment DEST:iklem-sim",
-    "push:sf-main": "SET NODE_ENV=production && rollup -c --environment DEST:iklem-main",
+    "push:sf-main": "SET NODE_ENV=production && npm run clean && rollup -c --environment DEST:iklem-main",
     "test": "npm run test-unit",
     "test-unit": "mocha test/unit/**/*.ts",
     "test-integration": "echo 'See docs/in-depth/testing.md for instructions on enabling integration tests'",

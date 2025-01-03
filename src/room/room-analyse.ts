@@ -19,7 +19,7 @@ export function createHubFlags(hub: Hub, room: Room) {
 
   Directive.createFlagIfNotPresent(new RoomPosition(46, 2, room.name), 'build', COLOR_BLUE);
 
-  if (!hub.observer) {
+  if (!hub.observer && hub.spawns.length > 0) {
     Directive.createFlagIfNotPresent(new RoomPosition(44, 1, room.name), 'scout', COLOR_GREEN);
   }
 
@@ -48,6 +48,10 @@ export function registerOutpost(hub: Hub, roomName: string) {
   if (hub.memory.outposts.includes(roomName)) {
     // Outpost already registered
     return;
+  }
+
+  if( hub.spawns.length == 0) {
+    // Not outpost for incubation hub
   }
 
   createOutpostDirective(hub, roomName);

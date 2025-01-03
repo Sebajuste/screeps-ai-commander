@@ -97,17 +97,21 @@ export class CPU {
 
     let taskDropped = 0;
 
-    let exec = scheduler.nextProcess();
-    while (exec != null) {
+    let process = scheduler.nextProcess();
+    while (process != null) {
       let start = Game.cpu.getUsed();
       try {
-        exec.process.runnable();
+        process.runnable();
       } catch (err: any) {
         log.fatal(err);
         log.fatal(err.stack);
       }
       const cpuUsed = Game.cpu.getUsed() - start;
-      exec.group.totalTime += cpuUsed;
+      // exec.group.totalTime += cpuUsed;
+
+      if( cpuUsed > 1) {
+        log.warning(`Thread cpuUsed: ${cpuUsed}`);
+      }
 
       statistics.total += cpuUsed;
 
@@ -126,13 +130,14 @@ export class CPU {
         break;
       }
 
+      /*
       if (exec.group.totalTime >= 25) {
         log.warning('Max CPU used for process group reached');
         taskDropped += scheduler.stopPreviousGroup();
       }
+      */
 
-      exec = scheduler.nextProcess();
-
+      process = scheduler.nextProcess();
     }
 
     // Sanitaze
@@ -141,7 +146,7 @@ export class CPU {
     const avg = Math.round(((statistics.total / Math.max(1, statistics.count)) + Number.EPSILON) * 100) / 100;
     const costByCreep = Math.round((statistics.total / Math.max(1, Object.keys(Game.creeps).length) + Number.EPSILON) * 100) / 100;
 
-    log.info(`[${Game.time}] bucket: ${Game.cpu.bucket}, CPU used: ${statistics.total}, tasks: ${statistics.count}, avg: ${avg}, byCreeps: ${costByCreep}, taskDropped: ${taskDropped} `);
+    log.info(`[${Game.time}] bucket: ${Game.cpu.bucket}, CPU used: ${statistics.total}, tasks: ${statistics.count}, remain: ${scheduler.taskCount()}, avg: ${avg}, byCreeps: ${costByCreep}, taskDropped: ${taskDropped} `);
 
   }
 

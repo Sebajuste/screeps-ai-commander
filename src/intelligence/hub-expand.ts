@@ -2,7 +2,6 @@ import { Exploration } from "Exploration";
 import _ from "lodash";
 import { Hub } from "../hub/Hub";
 import { log } from "utils/log";
-import { DistanceTransform } from "utils/distance-transform";
 
 const MINERAL_PRIORITY: MineralConstant[] = [
   RESOURCE_LEMERGIUM,
@@ -83,6 +82,16 @@ function searchNextHub(mineralTarget: MineralConstant, hubMap: { [name: string]:
   return nextRoom;
 }
 
+/**
+ * Analyzes and returns the next room to build a new hub, based on the minerals available in existing hubs.
+ * The function searches for the next mineral required according to the predefined priority list (MINERAL_PRIORITY).
+ * It then iteratively checks each eligible room (as defined by the isRoomEligible function) until it finds a suitable one for expansion.
+ * If no suitable room is found after checking all mineral targets, the function returns null.
+ *
+ * @param hubs An object containing existing hubs with their respective room names as keys and Hub objects as values.
+ * @param hubMap A dictionary mapping room names to strings.
+ * @returns The name of the next room suitable for a new hub expansion or null if no such room is found.
+ */
 export function analyseNextHub(hubs: { [roomName: string]: Hub }, hubMap: { [name: string]: string }): string | null {
 
   // Create list of current available minerals
