@@ -296,6 +296,8 @@ export class Hub {
 
     if (this.spawns[0]) {
       this.areas.agentFactory = new AgentFactoryArea(this, this.spawns[0]);
+    } else {
+      log.warning(`NO SPAWN`);
     }
 
     if (this.storage && this.spawns[0]) {
@@ -310,8 +312,6 @@ export class Hub {
 
     this.areaList = _.flatten(_.values(this.areas) as (Area | Area[])[]);
     this.areaList.forEach(area => area.registerDaemons());
-
-    this.roomPlanner.refresh();
 
   }
 
@@ -399,12 +399,7 @@ export class Hub {
     this.logisticsNetwork.refresh();
     this.linkNetwork.refresh();
 
-    this.areaList.forEach(area => pushProcess(this.processStack, () => {
-      area.refresh();
-    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset));
     this.dispatcher.refresh();
-
-    this.roomPlanner.refresh();
 
     log.debug(`${this.print} refresh cost : ${Math.floor((Game.cpu.getUsed() - start) * 100) / 100}`)
 
@@ -433,18 +428,13 @@ export class Hub {
      * Run sub process
      */
 
-    this.areaList.forEach(area => pushProcess(this.processStack, () => {
-      const start = Game.cpu.getUsed();
-      area.init();
-      const cpuCost = Game.cpu.getUsed() - start;
-      area.performanceReport['init'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
-    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 10));
     this.dispatcher.init();
 
     /**
      * Set all drops not registered as resource
      */
     pushProcess(this.processStack, () => {
+
       this.drops.forEach(drop => {
 
         // TODO : if energy, only of not near of CONTROLLER, SOURCE, CONSTRUCTION_CITE
@@ -455,20 +445,11 @@ export class Hub {
       });
     }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 10);
 
-    pushProcess(this.processStack, () => this.roomPlanner.init());
-
   }
 
   run() {
 
     const start = Game.cpu.getUsed();
-
-    this.areaList.forEach(area => pushProcess(this.processStack, () => {
-      const start = Game.cpu.getUsed();
-      const cpuCost = Game.cpu.getUsed() - start;
-      area.performanceReport['run'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
-      area.run();
-    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 20));
 
     this.dispatcher.run();
 
@@ -476,11 +457,6 @@ export class Hub {
 
     // Run agent
     _.orderBy(this.agents, agent => agent.lastRunTick, ['asc']).forEach(agent => agent.run(this), PROCESS_PRIORITY_NORMAL);
-
-    // Run room planner
-    pushProcess(this.processStack, () => this.roomPlanner.run(), PROCESS_PRIORITY_LOW);
-
-    log.info(`HUB::run() CPU used : ${Game.cpu.getUsed() - start}`)
 
   }
 

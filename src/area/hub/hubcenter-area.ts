@@ -3,7 +3,6 @@ import { RouterDaemon } from "daemons/civilian/router-daemon";
 import { SupplyDaemon } from "daemons/civilian/supply-daemon";
 import { ObserverDaemon } from "daemons/expend/observer-daemon";
 import { Hub } from "hub/Hub";
-import { log } from "utils/log";
 import { findClosestByLimitedRange } from "utils/util-pos";
 
 export class HubCenterArea extends Area {

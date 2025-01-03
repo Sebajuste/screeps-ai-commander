@@ -39,12 +39,10 @@ export class Dispatcher {
   }
 
   get runableSortedDaemons(): Daemon[] {
-
     if (!this._runableDaemons) {
       this._runableDaemons = _.orderBy(_.filter(this.daemons, daemon => !this.isDaemonSuspended(daemon)), daemon => daemon.priority);
     }
     return this._runableDaemons;
-
   }
 
   suspendDaemon(daemon: Daemon, ticks: number) {
@@ -206,15 +204,35 @@ export class Dispatcher {
     return { data: roledata, styles: styles };
   }
 
+/**
+ * Refreshes the dispatcher by invalidating cached runable daemons and refreshing areas, directives, and daemons.
+ * This method iterates over all areas, directives, and daemons and executes their refresh methods in high priority processes.
+ */
   refresh() {
     this._runableDaemons = undefined;
+
+    this.hub.areaList.forEach(area => pushProcess(this.hub.processStack, () => {
+      area.refresh();
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset));
+
     this.directives.forEach(directive => pushProcess(this.hub.processStack, () => directive.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.directivePriotityOffset));
     this.daemons.forEach(daemon => pushProcess(this.hub.processStack, () => daemon.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.daemonPriotityOffset));
   }
 
-  init() {
-
+/**
+ * Initializes the Dispatcher class by updating daemon suspension status, initializing directives and daemons,
+ * and pre-initializing and initializing each runable daemon.
+ */
+init() {
+  // Update daemon suspension status
     this.daemons.forEach(daemon => this.updateDaemonSuspend(daemon));
+
+    this.hub.areaList.forEach(area => pushProcess(this.hub.processStack, () => {
+      const start = Game.cpu.getUsed();
+      area.init();
+      const cpuCost = Game.cpu.getUsed() - start;
+      area.performanceReport['init'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 10));
 
     this.directives.forEach(directive => pushProcess(this.hub.processStack, () => {
       const start = Game.cpu.getUsed();
@@ -232,7 +250,20 @@ export class Dispatcher {
     }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.daemonPriotityOffset + 10));
   }
 
-  run() {
+/**
+ * The run method of the Dispatcher class that is responsible for executing directives and daemons.
+ * It calculates the CPU cost of each execution and updates the performance report of these entities.
+ */
+run() {
+  // Execute each directive with a high priority process and update its performance report
+
+    this.hub.areaList.forEach(area => pushProcess(this.hub.processStack, () => {
+      const start = Game.cpu.getUsed();
+      area.run();
+      const cpuCost = Game.cpu.getUsed() - start;
+      area.performanceReport['run'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
+    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.areaPriotityOffset + 20));
+
     this.directives.forEach(directive => pushProcess(this.hub.processStack, () => {
       const start = Game.cpu.getUsed();
       directive.run();
@@ -245,7 +276,7 @@ export class Dispatcher {
       daemon.run();
       const cpuCost = Game.cpu.getUsed() - start;
       daemon.performanceReport['run'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
-    }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.daemonPriotityOffset + 20));
+    }, daemon.priority + Dispatcher.Settings.daemonPriotityOffset + 20));
   }
 
 }
