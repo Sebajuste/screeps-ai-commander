@@ -7,3 +7,6 @@
 
 # config
 .screeps.json
+
+# IDE
+.vscode

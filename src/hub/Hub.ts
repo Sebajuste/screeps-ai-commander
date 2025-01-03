@@ -9,7 +9,6 @@ import { LogisticsNetwork } from "logistics/logistics-network";
 import _, { Dictionary } from "lodash";
 import { UpgradeArea } from "area/hub/upgrade-area";
 import { PROCESS_PRIORITY_HIGHT, PROCESS_PRIORITY_LOW, PROCESS_PRIORITY_NORMAL, ProcessStack, pushProcess } from "cpu/process";
-import { Settings } from "settings";
 import { setHarvestFlag } from "room/room-analyse";
 import { RoomPlanner } from "./room-planner/room-planner";
 import { BunkerRoomPlanner } from "./room-planner/bunker-room-planner";
