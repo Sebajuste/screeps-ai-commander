@@ -227,7 +227,8 @@ export class BunkerRoomPlanner extends RoomPlanner {
       return;
     }
     const layoutIsValid: boolean = !!this.bunker;
-    if (layoutIsValid) { // Write everything to memory
+    if (layoutIsValid) {
+      // Write everything to memory
       // Generate maps for each rcl
       delete this.memory.anchor;
       delete this.memory.mapsByLevel;
@@ -259,7 +260,7 @@ export class BunkerRoomPlanner extends RoomPlanner {
       }
       */
       this.memory.lastGenerated = Game.time;
-      console.log('Room layout and flag positions have been saved.');
+      log.debug('Room layout and flag positions have been saved.');
       // Destroy needed buildings
       if (this.hub.level == 1) { // clear out room if setting in for first time
         // this.demolishMisplacedStructures(true, true);

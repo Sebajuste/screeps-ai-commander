@@ -49,6 +49,6 @@ export function getRoomRange(from: string, to: string): number {
 }
 
 export function printPos(pos: RoomPosition) {
-  return '<a href="#!/room/' + Game.shard.name + '/' + this.roomName + '">[' + this.roomName + ', ' + this.x + ', ' + this.y + ']</a>';
+  return '<a href="#!/room/' + Game.shard.name + '/' + pos.roomName + '">[' + pos.roomName + ', ' + pos.x + ', ' + pos.y + ']</a>';
 }
 

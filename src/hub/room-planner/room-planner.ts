@@ -147,8 +147,14 @@ export abstract class RoomPlanner {
     }
   }
 
+/**
+ * Check if a structure of the specified type can be built at the given position.
+ *
+ * @param {BuildableStructureConstant} structureType - The type of the structure to check for.
+ * @param {RoomPosition} pos - The position where the structure is intended to be built.
+ * @returns {boolean} - True if a structure of the specified type can be built at the given position, false otherwise.
+ */
   static canBuild(structureType: BuildableStructureConstant, pos: RoomPosition): boolean {
-    // if (!pos.room) return false;
     const buildings = _.filter(pos.lookFor(LOOK_STRUCTURES), s => s && s.structureType == structureType);
     const sites = pos.lookFor(LOOK_CONSTRUCTION_SITES);
     if (!buildings || buildings.length == 0) {
@@ -159,6 +165,15 @@ export abstract class RoomPlanner {
     return false;
   }
 
+/**
+ * Check if there is any collision between structures in the map and the terrain of the colony room.
+ * If ignoreRoads is true, roads will be ignored during the check.
+ *
+ * @param {boolean} [ignoreRoads=false] - Whether to ignore roads during the collision check. Default value is false.
+ * @param {StructureMap} map - The structure map to use for the collision check.
+ * @param {string} colonyName - The name of the colony room.
+ * @returns {RoomPosition | undefined} - The position of the first collision found, or undefined if no collisions were found.
+ */
   protected static findCollision(ignoreRoads = false, map: StructureMap, colonyName: string): RoomPosition | undefined {
     const terrain = Game.map.getRoomTerrain(colonyName);
     for (const structureType in map) {
