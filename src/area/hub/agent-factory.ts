@@ -27,13 +27,13 @@ export interface SpawnRequest {
   options?: SpawnRequestOptions;		// options
 }
 
-interface ProtoCreep {
+export interface ProtoCreep {
   name: string;
   body: BodyPartConstant[];
   memory: CreepMemory;
 }
 
-interface SpawnOrder {
+export interface SpawnOrder {
   protoCreep: ProtoCreep;
   options?: SpawnRequestOptions; // SpawnOptions
 }

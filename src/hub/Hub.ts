@@ -17,6 +17,9 @@ import { Visualizer } from "ui/visualizer";
 import { HubCenterArea } from "area/hub/hubcenter-area";
 import { LinkNetwork } from "logistics/link-network";
 import { MineralArea } from "area/hub/mineral-area";
+import { Commander } from "Commander";
+import { Directive } from "directives/Directive";
+import { AgentFactoryRemoteArea } from "area/hub/agent-factory-remote";
 
 
 interface HubMemory {
@@ -75,6 +78,7 @@ export class Hub {
   ref: string;
 
   name: string;
+  commander: Commander;
 
   memory: HubMemory;
 
@@ -145,10 +149,11 @@ export class Hub {
 
   creepCPU: number;
 
-  constructor(id: number, name: string, outposts: string[]) {
+  constructor(id: number, name: string, outposts: string[], commander: Commander) {
     this.id = id;
     this.name = name;
     this.ref = name;
+    this.commander = commander;
     this.memory = Mem.wrap((Memory as any).hubs, name, DEFAULT_HUB_MEMORY, true);
     this.dispatcher = new Dispatcher(this);
     this.processStack = [];
@@ -296,7 +301,25 @@ export class Hub {
 
     if (this.spawns[0]) {
       this.areas.agentFactory = new AgentFactoryArea(this, this.spawns[0]);
+      Directive.removeFlagIfPresent(new RoomPosition(25, 25, this.room.name), 'claim');
     } else {
+
+      const claimFlag = _.find(Game.flags, flag => flag.name.includes('claim'));
+
+      if( claimFlag ) {
+        const flagMemory : any = claimFlag.memory;
+        const mainHubName = flagMemory['hub'];
+
+        const mainHub = this.commander.hubs[mainHubName];
+
+        if( mainHub && mainHub.areas.agentFactory ) {
+          this.areas.agentFactory = new AgentFactoryRemoteArea(this, mainHub.areas.agentFactory);
+        } else {
+          log.warning('Cannot find HUB ', mainHubName)
+        }
+
+      }
+
       log.warning(`NO SPAWN`);
     }
 
@@ -308,7 +331,9 @@ export class Hub {
       this.areas.minerals = this.minerals.map(mineral => new MineralArea(this, mineral));
     }
 
-    this.areas.upgrade = new UpgradeArea(this);
+    if( this.spawns[0] ) {
+      this.areas.upgrade = new UpgradeArea(this);
+    }
 
     this.areaList = _.flatten(_.values(this.areas) as (Area | Area[])[]);
     this.areaList.forEach(area => area.registerDaemons());

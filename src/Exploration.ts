@@ -145,7 +145,7 @@ export class Exploration {
       const exists = _.values(Game.map.describeExits(room.name));
       const controllerPos = room.controller?.pos;
 
-      const distanceTransformMap = DistanceTransform.compute(room.name);
+      const distanceTransformMap = DistanceTransform.computeWallDistance(room.name);
       const maxWallDistance = DistanceTransform.maxDistance(distanceTransformMap);
 
       const info = {
@@ -162,7 +162,7 @@ export class Exploration {
 
     } else {
 
-      const distanceTransformMap = DistanceTransform.compute(room.name);
+      const distanceTransformMap = DistanceTransform.computeWallDistance(room.name);
       const maxWallDistance = DistanceTransform.maxDistance(distanceTransformMap);
 
       const info = {

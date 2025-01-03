@@ -19,7 +19,7 @@ export class ClaimerRole {
       return [Tasks.claim({ pos: roomInfo.controllerPos })];
     }
 
-    return [Tasks.claim({ pos: new RoomPosition(25, 25, roomName) })];
+    return [Tasks.wait(new RoomPosition(25, 25, roomName), 10)];
 
   }
 

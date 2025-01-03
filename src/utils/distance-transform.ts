@@ -14,7 +14,7 @@ export class DistanceTransform {
     return maxValue;
   }
 
-  static getPositions(cost: CostMatrix, search?: number): number[][] {
+  static getPositions(cost: CostMatrix, search: number): number[][] {
     const result: number[][] = [];
     for (let y = 0; y < 50; ++y) {
       for (let x = 0; x < 50; ++x) {
@@ -27,7 +27,23 @@ export class DistanceTransform {
     return result;
   }
 
-  static compute(roomName: string): CostMatrix {
+  static getMaxPosition(cost: CostMatrix): number[] | null {
+    let max = 0;
+    let maxPos = null;
+
+    for (let y = 0; y < 50; ++y) {
+      for (let x = 0; x < 50; ++x) {
+        const value = cost.get(x, y);
+        if (maxPos == null || value > max) {
+          maxPos = [x, y];
+          max = value;
+        }
+      }
+    }
+    return maxPos;
+  }
+
+  static computeWallDistance(roomName: string): CostMatrix {
     const terrain = Game.map.getRoomTerrain(roomName);
 
     const topDownPass = new PathFinder.CostMatrix();
@@ -58,7 +74,6 @@ export class DistanceTransform {
           topDownPass.get(x + 1, y) + 1
         );
         topDownPass.set(x, y, value);
-        // vis.circle(x, y, { radius: value / 25 });
       }
     }
 

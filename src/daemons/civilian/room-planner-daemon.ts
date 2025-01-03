@@ -2,8 +2,9 @@ import { Actor } from "Actor";
 import { PROCESS_PRIORITY_LOW } from "cpu/process";
 import { Daemon } from "daemons";
 import { Hub, RunActivity } from "hub/Hub";
-import { BunkerRoomPlanner } from "hub/room-planner/bunker-room-planner";
 import { RoomPlanner } from "hub/room-planner/room-planner";
+import { DistanceTransform } from "utils/distance-transform";
+import { log } from "utils/log";
 
 export class RoomPlannerDaemon extends Daemon {
 
@@ -16,15 +17,39 @@ export class RoomPlannerDaemon extends Daemon {
 
   refresh() {
     super.refresh();
-    this.roomPlanner.refresh();
+    if( this.hub.spawns.length > 0) {
+      this.roomPlanner.refresh();
+    }
   }
 
   init(): void {
-    this.roomPlanner.init();
+
+    if( this.hub.spawns.length == 0 && this.hub.constructionSites.length == 0) {
+      // A spawn build is required
+
+      const distanceTransformMap = DistanceTransform.computeWallDistance(this.hub.name);
+
+      const result = DistanceTransform.getMaxPosition(distanceTransformMap);
+
+      if( result ) {
+        const [x, y] = result;
+        const pos = new RoomPosition(x, y, this.hub.name);
+        pos.createConstructionSite(STRUCTURE_SPAWN);
+      } else {
+        log.warning('Cannot create spawn ');
+      }
+
+    }
+
+    if( this.hub.spawns.length > 0) {
+      this.roomPlanner.init();
+    }
   }
 
   run(): void {
-    this.roomPlanner.run();
+    if( this.hub.spawns.length > 0) {
+      this.roomPlanner.run();
+    }
   }
 
 }

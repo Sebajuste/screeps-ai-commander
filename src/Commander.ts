@@ -109,7 +109,7 @@ export class Commander {
     const newHubs = _.filter(_.keys(hubOutposts), name => !this.hubs.hasOwnProperty(name));
 
     _.forEach(newHubs, name => {
-      const hub = new Hub(maxId++, name, hubOutposts[name]);
+      const hub = new Hub(maxId++, name, hubOutposts[name], this);
       this.hubs[name] = hub;
       createHubFlags(hub, Game.rooms[name]);
     });
@@ -280,10 +280,7 @@ export class Commander {
 
     _.forEach(this.hubs, hub => pushProcess(hub.processStack, () => hub.init(), PROCESS_PRIORITY_HIGHT + 10));
 
-    // if (Game.time % 500) {
-
     this.analyseNextHubToBuild();
-    //}
 
   }
 

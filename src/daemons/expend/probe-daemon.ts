@@ -188,7 +188,7 @@ export class ProbeDaemon extends Daemon {
           // log.debug(`> nearRooms: ${nearRooms.length}`);
 
           const bestRooms = _.chain(nearRooms)//
-            .filter(roomName => exploration.getRoom(roomName)?.haveEnnemy == false && !outpostNames.includes(roomName) && !exploration.isInvalid(roomName))// No ennemy and not already outpost
+            .filter(roomName => exploration.getRoom(roomName)?.haveEnnemy == false && !outpostNames.includes(roomName) && !exploration.isInvalid(roomName) && (exploration.getRoom(roomName)?.sourceCount ?? 0) > 0 )// No ennemy, not already outpost, have energy
             .sortBy(roomName => {
 
               const distance = getRoomRange(this.hub.name, roomName); //Traveler.routeDistance(colony.name, roomName);
