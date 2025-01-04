@@ -28,7 +28,7 @@ export class TowerDaemon extends Daemon {
 
   private handleEnergyRequests() {
     for (const tower of this.hub.towers) {
-      if (tower.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+      if (tower.store.getFreeCapacity(RESOURCE_ENERGY) > tower.store.getCapacity(RESOURCE_ENERGY) * 0.1 ) {
         // Not enought energy
         this.hub.logisticsNetwork.requestInput(tower, RESOURCE_ENERGY);
       }

@@ -5,6 +5,7 @@ import { Hub, RunActivity } from "hub/Hub";
 import { RoomPlanner } from "hub/room-planner/room-planner";
 import { DistanceTransform } from "utils/distance-transform";
 import { log } from "utils/log";
+import { generateRandomName, getSeedFromRoomName } from "utils/name-generator";
 
 export class RoomPlannerDaemon extends Daemon {
 
@@ -34,7 +35,11 @@ export class RoomPlannerDaemon extends Daemon {
       if( result ) {
         const [x, y] = result;
         const pos = new RoomPosition(x, y, this.hub.name);
-        pos.createConstructionSite(STRUCTURE_SPAWN);
+
+        const nameSeed = getSeedFromRoomName(pos.roomName);
+        const name = generateRandomName(nameSeed);
+
+        pos.createConstructionSite(STRUCTURE_SPAWN, name);
       } else {
         log.warning('Cannot create spawn ');
       }

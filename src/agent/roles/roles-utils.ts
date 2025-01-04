@@ -2,7 +2,7 @@ import { Exploration } from "Exploration";
 import { Agent } from "agent/Agent";
 import { haveBodyPart } from "agent/agent-builder";
 import { StoreStructure } from "task/task-builder";
-import { getMultiRoomRange, getRoomRange } from "utils/util-pos";
+import { getRoomRange } from "utils/util-pos";
 
 const STRUCTURE_WEIGHT: { [key: string]: number } = {
   [STRUCTURE_SPAWN]: 100,
@@ -14,6 +14,16 @@ const STRUCTURE_WEIGHT: { [key: string]: number } = {
   [STRUCTURE_ROAD]: 2
 };
 
+/**
+ * This function calculates and returns the weight of a construction site based on its structure type.
+ * The weights are defined in the STRUCTURE_WEIGHT object, which maps each structure type to a numeric value.
+ * If the construction site's structure type is not found in this object, the function defaults to returning 1.0 as the weight.
+ * Additionally, if the structure type is a road, the function considers the terrain type at the construction site's position
+ * and multiplies the weight by 4 if the terrain is swamp, or leaves it unchanged otherwise.
+ *
+ * @param {ConstructionSite} construction_site - The construction site object for which to calculate the weight.
+ * @returns {number} The calculated weight of the construction site.
+ */
 function getBuildWeigth(construction_site: ConstructionSite) {
   const weight = STRUCTURE_WEIGHT.hasOwnProperty(construction_site.structureType) ? STRUCTURE_WEIGHT[construction_site.structureType] : 1.0;
   if (construction_site.structureType == STRUCTURE_ROAD) {

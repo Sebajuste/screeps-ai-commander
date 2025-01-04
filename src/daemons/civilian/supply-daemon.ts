@@ -7,20 +7,23 @@ import { Daemon } from "daemons";
 import { RESOURCE_IMPORTANCE } from "data/resource";
 import { RunActivity } from "hub/Hub";
 import { bunkerLayout } from "hub/room-planner/bunker-layout";
-import { Quadrant, buildQuadrantFillOrder, filterQuadrant } from "hub/room-planner/bunker-room-planner";
+import { Quadrant, buildQuadrantFillOrder } from "hub/room-planner/bunker-room-planner";
 import _, { Dictionary } from "lodash";
 import { Settings } from "settings";
-import { StoreStructure, Tasks } from "task/task-builder";
+import { EnergyStructure, StoreStructure, Tasks } from "task/task-builder";
 import { TaskPipeline } from "task/task-pipeline";
-import { Coord } from "utils/coord";
-import { log } from "utils/log";
 
+
+/**
+ * The SupplyDaemon class extends the Daemon class and is responsible for managing the supply of resources in the hub.
+ * It handles the spawning of supplier agents, computing their assignments, and creating task pipelines for them to follow.
+ * Additionally, it requests input from storage if necessary and updates its structure as needed.
+ */
 export class SupplyDaemon extends Daemon {
-
 
   sources?: StoreStructure[];
 
-  destinations?: StoreStructure[];
+  destinations?: EnergyStructure[];
 
   _energyFull: boolean;
 
@@ -38,11 +41,8 @@ export class SupplyDaemon extends Daemon {
     if (spawn) {
       const spawnPos = spawn.pos;
       const bunkerAnchor = new RoomPosition(spawnPos.x - 4, spawnPos.y, spawnPos.roomName);
-      console.log('this.hub.roomPlanner: ', this.hub.roomPlanner, ' => ', (this.hub.roomPlanner as any).bunker!)
       this.quadrantFillOrder = buildQuadrantFillOrder(bunkerAnchor, bunkerLayout);
     } else {
-
-      console.log('this.hub.roomPlanner: ', this.hub.roomPlanner, ' => ', (this.hub.roomPlanner as any).bunker!)
       this.quadrantFillOrder = buildQuadrantFillOrder((this.hub.roomPlanner as any).bunker!, bunkerLayout);
     }
 
@@ -77,8 +77,6 @@ export class SupplyDaemon extends Daemon {
 
   private computeSupplierAssignment() {
 
-    console.log("--- computeSupplierAssignment ---")
-
     const activeSuppliers = _.filter(this.agents, supplier => !supplier.spawning);
 
     this.activeSupplierCount = activeSuppliers.length;
@@ -99,22 +97,15 @@ export class SupplyDaemon extends Daemon {
       let index = 0;
       for (const quadrants of quadrantStructures) {
         const supplier = activeSuppliers[index % this.activeSupplierCount];
-
-        //_.extend(assignments[supplier.name], _.fromPairs(_.map(quadrant, s => [s.id, s])));
         this.supplierAssignements[supplier.name] = [...this.supplierAssignements[supplier.name], ..._.map(quadrants, quadrant => quadrant.id)]
-        //_.extend(this.supplierAssignements[supplier.name], _.map(quadrants, quadrant => quadrant.id));
-
         index++;
       }
 
     }
 
-
   }
 
   private populateStructure() {
-
-    console.log('--- populateStructure ---')
 
     if (!this.sources) {
       // Refresh sources
@@ -151,22 +142,18 @@ export class SupplyDaemon extends Daemon {
         .value() as StoreStructure[];
         */
 
-      this.destinations = _.compact([...this.hub.extentions, ...this.hub.spawns, ...this.hub.labs, ...towerNotHubCenter]) as StoreStructure[];
+      this.destinations = _.compact([...this.hub.extentions, ...this.hub.spawns, ...this.hub.labs, ...towerNotHubCenter]) as EnergyStructure[];
 
       const fillRequred = _.find(this.destinations, structure => structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
-      console.log('> fillRequred: ', fillRequred);
+
       const hasFillRequired = fillRequred != undefined;
       this._energyFull = !hasFillRequired;
-
-      console.log('> this._energyFull: ', this._energyFull)
 
     }
   }
 
   refresh(): void {
     super.refresh();
-
-    console.log(`${this.print} REFRESH`)
 
     this.sources = undefined;
     this.destinations = undefined;
@@ -176,10 +163,6 @@ export class SupplyDaemon extends Daemon {
       this.computeSupplierAssignment();
     }
 
-    console.log('> this.activeSupplierCount: ', this.activeSupplierCount)
-    console.log('> this._energyFull: ', this._energyFull)
-    console.log('> (Game.time % 10): ', (Game.time % 10))
-
     if (this.activeSupplierCount == 0 || (this._energyFull && (Game.time % 10) == 0)) {
       // Force update structure if not supplier are available, or each 10 ticks if all should be full
       this.populateStructure();
@@ -188,8 +171,6 @@ export class SupplyDaemon extends Daemon {
   }
 
   init(): void {
-
-    console.log(`${this.print} INIT`)
 
     const storage = this.hub.storage;
 
@@ -262,20 +243,12 @@ export class SupplyDaemon extends Daemon {
 
   run(): void {
 
-    console.log(`${this.print} RUN`)
-
-    console.log('> this._energyFull: ', this._energyFull)
-
-
     if (this._energyFull) {
       // Do nothing if energy is full
       return;
     }
 
-
     this.autoRun(this.agents, supplier => {
-
-      log.debug(`${this.print} create task pipeline for ${supplier.print} this._energyFull: ${this._energyFull}`);
 
       if (this._energyFull) {
         // No structure require fill
@@ -289,7 +262,7 @@ export class SupplyDaemon extends Daemon {
 
       this.populateStructure();
 
-      const destinationIds = this.supplierAssignements[supplier.name]; // this.destinations!
+      const destinationIds = this.supplierAssignements[supplier.name];
 
       const destinations = _.compact(_.map(destinationIds, id => _.find(this.destinations, destination => destination.id == id)));
 

@@ -109,16 +109,18 @@ export class UpgradeDaemon extends Daemon {
     if (!this.link && this.container && this.container.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
       // Energy required into container
 
-      const bestBodyParts = selectBodyParts(HAULER_TEMPLATE, this.hub.room.energyCapacityAvailable);
-      const bestCarryPerAgent = countBodyPart(bestBodyParts, CARRY) * CARRY_CAPACITY;
-      const minEnergyToRequest = Math.max(bestCarryPerAgent, 1000);
+      // const bestBodyParts = selectBodyParts(HAULER_TEMPLATE, this.hub.room.energyCapacityAvailable);
+      // const bestCarryPerAgent = countBodyPart(bestBodyParts, CARRY) * CARRY_CAPACITY;
+      // const minEnergyToRequest = Math.max(bestCarryPerAgent, 1000);
+      const minEnergyToRequest = this.container.store.getCapacity() * 0.8;
 
-      if ((!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000) && this.container.store.getFreeCapacity(RESOURCE_ENERGY) > minEnergyToRequest) {
+      // if ((!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 1000) && this.container.store.getFreeCapacity(RESOURCE_ENERGY) > minEnergyToRequest) {
+      if( this.container.store.getFreeCapacity(RESOURCE_ENERGY) > minEnergyToRequest ) {
         // Request energy into the container
         this.hub.logisticsNetwork.requestInput(this.container, RESOURCE_ENERGY);
       }
 
-      if (this.hub.level < 8 && this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 40000 && this.container.store.getFreeCapacity(RESOURCE_ENERGY) > minEnergyToRequest) {
+      if (this.hub.level < 8 && this.hub.storage && this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000 && this.container.store.getFreeCapacity(RESOURCE_ENERGY) > minEnergyToRequest) {
         // Request energy from Storage If no link available
         this.hub.logisticsNetwork.removeRequest(this.hub.storage, RESOURCE_ENERGY);
         this.hub.logisticsNetwork.requestOutput(this.hub.storage, RESOURCE_ENERGY);

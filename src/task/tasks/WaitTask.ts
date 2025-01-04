@@ -6,8 +6,7 @@ export const TASK_WAIT_NAME = 'wait';
 export class WaitTask extends Task {
 
   constructor(pos: RoomPosition, targetRange: number = 1, sleepTick: number = Game.time) {
-    super(TASK_WAIT_NAME, { pos: pos }, { oneShoot: true, targetRange, sleepTick });
-    this.reusePath = 50;
+    super(TASK_WAIT_NAME, { pos: pos }, { oneShoot: true, targetRange, sleepTick, reusePath: 50 });
   }
 
   isFinished(creep: Creep): boolean {

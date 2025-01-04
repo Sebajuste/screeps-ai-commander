@@ -1,21 +1,22 @@
 import _ from "lodash";
 import { log } from "utils/log";
-import { PROCESS_PRIORITY_NORMAL, Process } from "./process";
 import { Settings } from "settings";
 import { Scheduler } from "./scheduler";
 
+/**
+ * Represents the Central Processing Unit (CPU) of the game environment.
+ * This class manages and schedules processes to be executed based on their priority.
+ */
 export class CPU {
 
   static instance: CPU = new CPU();
 
   private _nextPid: number;
-  // private processQueue: Process[];
 
   private limitMode: boolean;
 
   private constructor() {
     this._nextPid = 0;
-    // this.processQueue = [];
     this.limitMode = false;
   }
 
@@ -23,6 +24,13 @@ export class CPU {
     return ++this._nextPid;
   }
 
+  /**
+   * Determines if the CPU bucket is above a certain threshold to allow tasks to run.
+   * This function checks the current CPU bucket value against a predefined minimum limit.
+   * If the bucket is lower than this limit, it logs a warning and returns false, indicating that tasks should not be run.
+   * If the bucket is equal or above this limit, it returns true, allowing tasks to proceed.
+   * @returns {boolean} A boolean value indicating whether tasks can be executed based on the current CPU bucket level.
+   */
   static shouldRun(): boolean {
     let result = true;
     if (Game.cpu.bucket < Settings.cpuBucketMin) {
@@ -36,50 +44,15 @@ export class CPU {
     return CPU.instance;
   }
 
-  /*
-  static pushProcess(runnable: () => void, priority: number = PROCESS_PRIORITY_NORMAL) {
-    CPU.instance.pushProcess(runnable, priority);
-  }
-
-  public clean() {
-    this.processQueue = [];
-  }
-
-  public pushProcess(runnable: () => void, priority: number = PROCESS_PRIORITY_NORMAL) {
-    this.processQueue.push({
-      pid: this.nextPid,
-      createdAt: Game.time,
-      priority: priority,
-      runnable: runnable
-    } as Process);
-  }
-  */
-
-  /*
-  runNextProcess() {
-
-    
-    if (this.processQueue.length == 0) {
-      return;
-    }
-
-    const process = this.processQueue.shift();
-    if (process) {
-
-      try {
-        process.runnable();
-      } catch (err: any) {
-        log.fatal(err);
-        log.fatal(err.stack);
-      }
-
-    }
-
-  }
-  */
-
-
-
+  /**
+   * Runs processes in the scheduler based on their priority.
+   *
+   * This method sorts the process queue by priority, then iteratively executes each process' runnable function.
+   * CPU usage and task count are tracked for statistical purposes. If the limit mode is enabled and the current CPU usage exceeds
+   * a predefined maximum threshold, execution stops. The number of dropped tasks is calculated as the remaining tasks in the queue after execution.
+   *
+   * @param {Scheduler} scheduler - An instance of the Scheduler class containing processes to be executed.
+   */
   run(scheduler: Scheduler): void {
 
     if (Game.cpu.bucket < Settings.cpuLimitBucket && !(Memory as any).generatePixel) {
@@ -110,7 +83,7 @@ export class CPU {
       // exec.group.totalTime += cpuUsed;
 
       if( cpuUsed > 1) {
-        log.warning(`Thread cpuUsed: ${cpuUsed}`);
+        log.warning(`Thread cpuUsed: ${cpuUsed}`, process.toString() );
       }
 
       statistics.total += cpuUsed;
@@ -149,75 +122,5 @@ export class CPU {
     log.info(`[${Game.time}] bucket: ${Game.cpu.bucket}, CPU used: ${statistics.total}, tasks: ${statistics.count}, remain: ${scheduler.taskCount()}, avg: ${avg}, byCreeps: ${costByCreep}, taskDropped: ${taskDropped} `);
 
   }
-
-  /*
-  public run() {
-
-    if (Game.cpu.bucket < 9000) {
-      this.limitMode = true;
-    } else if (Game.cpu.bucket >= 10000) {
-      this.limitMode = false;
-    }
-
-    
-    let taskCount = 0;
-
-    this.processQueue.sort((p1, p2) => p1.priority - p2.priority);
-
-    const statistics = {
-      total: 0,
-      count: 0,
-      min: 0,
-      max: 0
-    };
-
-    let lastCpu = Game.cpu.getUsed();
-
-    let process = this.processQueue.shift();
-    while (process != undefined) {
-      try {
-        process.runnable();
-      } catch (err: any) {
-        log.fatal(err);
-        log.fatal(err.stack);
-      }
-      taskCount++;
-      process = this.processQueue.shift();
-
-      const currentCpu = Game.cpu.getUsed();
-      const taskCpuUse = currentCpu - lastCpu;
-      lastCpu = currentCpu;
-
-      statistics.total += taskCpuUse;
-
-      if (statistics.count == 0 || taskCpuUse > statistics.max) {
-        statistics.max = taskCpuUse;
-      }
-      if (statistics.count == 0 || taskCpuUse < statistics.min) {
-        statistics.min = taskCpuUse;
-      }
-
-      statistics.count++;
-
-      if (this.limitMode && currentCpu > Settings.cpuMax) {
-        break;
-      }
-
-    }
-
-    const taskDropped = this.processQueue.length;
-
-    this.clean();
-
-    // Sanitaze
-
-    statistics.total = Math.round((statistics.total + Number.EPSILON) * 100) / 100;
-    const avg = Math.round(((statistics.total / Math.max(1, statistics.count)) + Number.EPSILON) * 100) / 100;
-    const costByCreep = Math.round((statistics.total / Math.max(1, Object.keys(Game.creeps).length) + Number.EPSILON) * 100) / 100;
-
-    log.info(`[${Game.time}] bucket: ${Game.cpu.bucket}, CPU used: ${statistics.total}, tasks: ${statistics.count}, avg: ${avg}, byCreeps: ${costByCreep}, taskDropped: ${taskDropped} `);
-    
-  }
-  */
 
 }

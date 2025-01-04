@@ -16,6 +16,11 @@ export interface ExecutionProcess {
 }
 
 
+/**
+ * The Scheduler class manages the execution of processes in a series of stacks.
+ * It keeps track of the current process and its group, as well as the total number of tasks and time taken by each process group.
+ * The nextProcess method is used to retrieve the next process to be executed from the stack.
+ */
 export class Scheduler {
 
   private _processStacks: ProcessStack[];
@@ -29,7 +34,6 @@ export class Scheduler {
   static currentId: number;
 
   empty() {
-    // return this._processGroups.length = 0;
     return this._processStacks.length = 0;
   }
 
@@ -44,10 +48,7 @@ export class Scheduler {
   }
 
   taskCount(): number {
-
-    // return _.sum(_.map(this._processGroups, group => group.stack.length));
     return _.sum(_.map(this._processStacks, stack => stack.length));
-
   }
 
   private nextStack(): ProcessStack | null {
@@ -71,6 +72,13 @@ export class Scheduler {
   }
 
 
+/**
+ * Retrieves the next process to be executed from the stack.
+ * This method advances the iterator to the next stack and returns the first process in that stack.
+ * If there are no more processes left in any stack, it resets the iterator and returns null.
+ * The method also updates the current ID of the Scheduler class with the PID of the returned process.
+ * @returns {Process | null} - The next process to be executed or null if there are no more processes left in any stack.
+ */
   nextProcess(): Process | null {
 
     Scheduler.currentId = 0;
@@ -90,40 +98,6 @@ export class Scheduler {
     Scheduler.currentId = process.pid;
 
     return process;
-
-    /*
-    const groupIndex = (this._iterator) % this._processStacks.length;
-    const stack = this._processStacks[groupIndex];
-
-    if (!group) {
-      return null;
-    }
-
-    if (group.stack.length != group.count) {
-      // If a process has had new process
-      group.stack.sort((p1, p2) => p1.priority - p2.priority);
-    }
-    
-
-    const process = group.stack.shift();
-
-    group.count = group.stack.length; // Update process counter
-
-    if (!process) {
-      return null;
-    }
-
-    if (group.stack.length == 0) {
-      // Current group is empty
-      // this._processGroups.splice(groupIndex, 1); // Remove empty stack
-    }
-
-    this._iterator++; // Go to next group
-
-    Scheduler.currentId = process.pid;
-
-    return { process: process, group: group } as ExecutionProcess;
-    */
   }
 
   private stopPreviousGroup(): number {

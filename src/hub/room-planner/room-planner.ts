@@ -77,7 +77,6 @@ export abstract class RoomPlanner {
   abstract get storagePos(): RoomPosition | undefined;
 
   protected shouldRecheck(offset = 0): boolean {
-    log.debug(`> Game.time: ${Game.time} >= ${this.memory.recheckStructuresAt}`)
     if (Game.time >= (this.memory.recheckStructuresAt || Infinity) + offset) {
       this.memory.recheckStructuresAt = Game.time + RoomPlanner.settings.recheckAfter;
       return true;

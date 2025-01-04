@@ -221,8 +221,6 @@ export class AgentFactoryArea extends Area {
 
   private handleSpawns(): void {
 
-    log.debug(`AgentFactoryArea::handleSpawns`);
-
     // Spawn all queued creeps that you can
     while (this.availableSpawns.length > 0) {
       const result = this.spawnHighestPriorityAgent();
@@ -317,7 +315,6 @@ export class AgentFactoryArea extends Area {
   }
 
   run(): void {
-    log.debug(`AgentFactoryArea::run`)
     this.handleSpawns();
     this.recordStats();
   }

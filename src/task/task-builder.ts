@@ -14,9 +14,9 @@ import { UpgradeTask } from "./tasks/UpgradeTask";
 import { WaitTask } from "./tasks/WaitTask";
 import { WithdrawTask } from "./tasks/WithdrawTask";
 
-export type StoreStructure = StructureContainer | StructureStorage | StructureLink | StructureTerminal | StructureLab | StructureTower | StructureSpawn;
-
 export type EnergyStructure = StructureLink | StructureSpawn | StructureLab | StructureTower | StructureExtension;
+
+export type StoreStructure = EnergyStructure | StructureContainer | StructureStorage | StructureTerminal;
 
 export type WithdrawTarget = StoreStructure | Ruin | Tombstone;
 
@@ -73,6 +73,10 @@ export class Tasks {
 
   static harvest(target: Source | Mineral<MineralConstant> | Deposit, container?: StoreStructure | null, oneShoot?: boolean): Task {
     return new HarvestTask(target, container, oneShoot);
+  }
+
+  static moveTo(pos: RoomPosition, targetRange?: number) {
+    return new WaitTask(pos, targetRange);
   }
 
   static pickup(resource: Resource<ResourceConstant>): Task {

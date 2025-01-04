@@ -1,8 +1,6 @@
 /**
  * https://docs.screeps.com/simultaneous-actions.html
  */
-import { Exploration } from "Exploration";
-import { Traveler } from "libs/traveler/traveler";
 import _ from "lodash";
 import { printCreep } from "utils/creep-utils";
 import { log } from "utils/log";
@@ -11,6 +9,7 @@ export type TaskTarget = { id?: Id<_HasId>, pos: RoomPosition };
 
 export interface TaskOptions {
   targetRange: number;
+  reusePath?: number;
   oneShoot: boolean;
   [key: string]: any;
 }
@@ -29,8 +28,6 @@ export abstract class Task {
   name: string;
   target: TaskTarget;
   options: TaskOptions;
-
-  reusePath?: number;
 
   constructor(name: string, target: TaskTarget, options: TaskOptions = DEFAULT_OPTIONS) {
     this.name = name;
@@ -59,7 +56,7 @@ export abstract class Task {
     }
 
     const r = creep.moveTo(this.target, {
-      reusePath: this.reusePath != undefined ? this.reusePath : 5
+      reusePath: this.options.reusePath != undefined ? this.options.reusePath : 5
     });
     // const r = creep.room.name == this.target.pos.roomName ? creep.moveTo(this.target) : Traveler.travelTo(creep, this.target);
     if (r != OK) {

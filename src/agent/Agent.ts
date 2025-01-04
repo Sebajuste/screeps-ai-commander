@@ -1,10 +1,6 @@
 import { SpawnRequestOptions } from "area/hub/agent-factory";
-import { Task } from "../task/Task";
-import { TaskInfo, deserializeTasks, serializeTasks } from "../task/task-initializer";
-import { Mem } from "memory/Memory";
-import { CPU } from "cpu/CPU";
+import { TaskInfo } from "../task/task-initializer";
 import { log } from "utils/log";
-import { printCreep } from "utils/creep-utils";
 import { OK_PIPELINE_READY, TaskPipeline, TaskPipelineHandler } from "task/task-pipeline";
 import { PROCESS_PRIORITY_LOW, pushProcess } from "cpu/process";
 import { Hub } from "hub/Hub";
@@ -32,10 +28,9 @@ export interface AgentMemory extends CreepMemory {
   lastRunTick?: number;
 };
 
-const DEFAULT_AGENT_MEMORY = {
-
-};
-
+/**
+ * Represents an agent in the game, which is a type of creep with additional functionality.
+ */
 export class Agent {
 
   creep: Creep;

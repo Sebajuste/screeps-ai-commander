@@ -1,6 +1,5 @@
 import _ from "lodash";
 import { log } from "./log";
-import { isRoomPosition } from "task/task-builder";
 
 
 const ROOM_COORD_PATTERN = /^[WE]([0-9]+)[NS]([0-9]+)$/;

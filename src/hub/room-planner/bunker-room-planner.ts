@@ -7,6 +7,7 @@ import _ from "lodash";
 import { BuildPriorities } from "./room-priorities-structures";
 import { bunkerLayout } from "./bunker-layout";
 import { printPos } from "utils/util-pos";
+import { generateRandomName, getSeedFromRoomName } from "utils/name-generator";
 
 
 
@@ -164,6 +165,15 @@ export class BunkerRoomPlanner extends RoomPlanner {
     }
   }
 
+  private createConstructionSite(pos: RoomPosition, structureType: BuildableStructureConstant): ScreepsReturnCode {
+    if( structureType == STRUCTURE_SPAWN) {
+      const nameSeed = getSeedFromRoomName(pos.roomName);
+      const name = generateRandomName(nameSeed);
+      return pos.createConstructionSite(structureType, name);
+    }
+    return pos.createConstructionSite(structureType);
+  }
+
   private buildMissingStructures() {
     // Max buildings that can be placed each tick
     let count = RoomPlanner.settings.maxSitesPerColony - this.hub.constructionSites.length;
@@ -180,7 +190,7 @@ export class BunkerRoomPlanner extends RoomPlanner {
       if (this.map[structureType]) {
         for (const pos of this.map[structureType]) {
           if (count > 0 && RoomPlanner.canBuild(structureType, pos)) {
-            const result = pos.createConstructionSite(structureType);
+            const result = this.createConstructionSite(pos, structureType);
             if (result != OK) {
               const structures = pos.lookFor(LOOK_STRUCTURES);
               for (const structure of structures) {
@@ -403,8 +413,6 @@ export class BunkerRoomPlanner extends RoomPlanner {
   }
 
   run(): void {
-
-    log.debug('RoomPlanner run ', this.active);
 
     if (this.active) {
       this.make();

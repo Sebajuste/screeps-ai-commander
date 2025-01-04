@@ -134,17 +134,6 @@ export class HarvestDaemon extends Daemon {
       this.hub.linkNetwork.requestOutput(this.initializer.link);
     }
 
-    /*
-    if (this.initializer.container) {
-      if (this.initializer.container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-        // Output the energy into container
-        this.hub.logisticsNetwork.requestOutput(this.initializer.container, RESOURCE_ENERGY);
-      }
-      return;
-    }
-    */
-
-
     if (this.drop && (!this.initializer.container || this.drop.amount > this.initializer.container.store.getUsedCapacity(RESOURCE_ENERGY))) {
       // Output the energy droped
       console.log(`${this.print} request drop output`)
@@ -156,42 +145,9 @@ export class HarvestDaemon extends Daemon {
       this._dropCache.value = findClosestByLimitedRange(this.pos, this.hub.dropsByRooms[this.room.name], 1);
     }
 
-    /*
-    const haveStoreStructure = this.initializer.container || this.initializer.link;
-
-    if (this.initializer.container && this.initializer.container.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-      // Output the energy into container
-      this.hub.logisticsNetwork.requestOutput(this.initializer.container, RESOURCE_ENERGY);
-    }
-
-    if (this.initializer.link && this.initializer.link.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-      // Output the energy into Link
-      this.hub.linkNetwork.requestOutput(this.initializer.link);
-    }
-
-    if (!haveStoreStructure && this.drop) {
-
-      if (!this._dropCache.isValid()) {
-        this._dropCache.value = findClosestByLimitedRange(this.pos, this.hub.dropsByRooms[this.room.name], 1);
-      }
-
-      // Output the energy droped
-      this.hub.logisticsNetwork.requestOutput(this.drop, this.drop.resourceType);
-    }
-    */
-
-
   }
 
   run(): void {
-
-    /*
-    const container = this.initializer.container;
-    if (container) {
-      // Clear pipeline if harvester is not over container
-      _.filter(this.agents, agent => !agent.pos.isEqualTo(container.pos)).forEach(agent => agent.taskPipelineHandler.clear());
-    }
-    */
 
     if (this.source.energy == 0) {
       // Sleep until energy respawn

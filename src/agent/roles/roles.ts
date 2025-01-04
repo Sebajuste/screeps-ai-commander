@@ -4,7 +4,7 @@
 
 import { Agent } from "agent/Agent";
 import { Task } from "task/Task";
-import { StoreStructure, Tasks, isResource, isStoreStructure, isTargetPosition, isTombstone } from "task/task-builder";
+import { EnergyStructure, StoreStructure, Tasks, isResource, isStoreStructure, isTargetPosition, isTombstone } from "task/task-builder";
 import { Hub } from "hub/Hub";
 import { log } from "utils/log";
 import _ from "lodash";
@@ -192,9 +192,12 @@ export class HarvestRole {
 
     const pipeline: TaskPipeline = [];
 
-    if (container && (agent.pos.roomName != container.pos.roomName || agent.pos.x == container.pos.x || agent.pos.y == container.pos.y)) {
-      // Agent must go on the container
-      pipeline.push(Tasks.wait(container.pos, 0));
+    if (container && agent.pos.roomName !== container.pos.roomName) {
+      // Agent must go on the container's room
+      pipeline.push(Tasks.moveTo(new RoomPosition(25, 25, container.pos.roomName), 0));
+    } else if (container && !(agent.pos.isEqualTo(container.pos))) {
+      // Agent must move to the container's position
+      pipeline.push(Tasks.moveTo(container.pos, 0));
     }
 
 
@@ -529,9 +532,18 @@ export class ScoutRole {
 
 }
 
+/**
+ * Represents the role of a supplier in the game. This role is responsible for managing energy transfer between source structures and destination structures.
+ */
 export class SupplierRole {
 
-  static pipeline(hub: Hub, agent: Agent, sources: StoreStructure[], destinations: StoreStructure[]): TaskPipeline {
+  private static STRUCTURE_WEIGHT : {[key:string]: number}= {
+    STRUCTURE_TOWER: -1000,
+    STRUCTURE_EXTENSION : 100,
+    STRUCTURE_SPAWN: 1000
+  };
+
+  static pipeline(hub: Hub, agent: Agent, sources: StoreStructure[], destinations: EnergyStructure[]): TaskPipeline {
 
     const fillRequired = _.filter(destinations, dest => dest.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
 
@@ -546,19 +558,6 @@ export class SupplierRole {
 
     if (agent.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
       // Take Energy
-
-      // From near drops
-      const drops = agent.pos.findInRange(hub.dropsByRooms[agent.room.name], 5, { filter: (drop: Resource) => drop.resourceType == RESOURCE_ENERGY });
-      const drop = _.first(_.orderBy(drops, d => dropScore(agent, d), ['desc']));
-
-
-      if (drop) {
-        log.debug(`Drop for supplier ${drop.pos}`)
-        // _.remove(hub.dropsByRooms[agent.room.name], it => it == drop);
-        // pipeline.push(Tasks.pickup(drop));
-        // supplierEnergy += Math.min(drop.amount, agent.store.getFreeCapacity(RESOURCE_ENERGY));
-      }
-
 
       if (supplierEnergy < agent.store.getCapacity(RESOURCE_ENERGY)) {
 
@@ -577,10 +576,17 @@ export class SupplierRole {
       return [];
     }
 
-    const sortedDestinations = _.orderBy(fillRequired, desination => desination.pos.x * 50 + desination.pos.y, ['desc']);
+    // const sortedDestinations = _.orderBy(fillRequired, destination => destination.pos.x * 50 + destination.pos.y, ['desc']);
+
+    const sortedDestinations = _.orderBy(fillRequired, destination => {
+      const dx = Math.abs(destination.pos.x);
+      const dy = Math.abs(50 - destination.pos.y);
+      const distance = dx + dy; // distance de Manhattan
+      const weight = SupplierRole.STRUCTURE_WEIGHT[destination.structureType] ?? 100;
+      return distance + weight;
+    }, ['desc']);
 
     for (const destination of sortedDestinations) {
-
       supplierEnergy -= Math.min(supplierEnergy, destination.store.getFreeCapacity(RESOURCE_ENERGY));
       pipeline.push(Tasks.transfer(destination, RESOURCE_ENERGY));
       if (supplierEnergy <= 0) {
@@ -590,8 +596,6 @@ export class SupplierRole {
 
     return pipeline;
   }
-
-
 
 }
 
