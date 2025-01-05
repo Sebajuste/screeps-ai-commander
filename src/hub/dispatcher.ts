@@ -204,10 +204,10 @@ export class Dispatcher {
     return { data: roledata, styles: styles };
   }
 
-/**
- * Refreshes the dispatcher by invalidating cached runable daemons and refreshing areas, directives, and daemons.
- * This method iterates over all areas, directives, and daemons and executes their refresh methods in high priority processes.
- */
+  /**
+   * Refreshes the dispatcher by invalidating cached runable daemons and refreshing areas, directives, and daemons.
+   * This method iterates over all areas, directives, and daemons and executes their refresh methods in high priority processes.
+   */
   refresh() {
     this._runableDaemons = undefined;
 
@@ -219,12 +219,12 @@ export class Dispatcher {
     this.daemons.forEach(daemon => pushProcess(this.hub.processStack, () => daemon.refresh(), PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.daemonPriotityOffset));
   }
 
-/**
- * Initializes the Dispatcher class by updating daemon suspension status, initializing directives and daemons,
- * and pre-initializing and initializing each runable daemon.
- */
-init() {
-  // Update daemon suspension status
+  /**
+   * Initializes the Dispatcher class by updating daemon suspension status, initializing directives and daemons,
+   * and pre-initializing and initializing each runable daemon.
+   */
+  init() {
+    // Update daemon suspension status
     this.daemons.forEach(daemon => this.updateDaemonSuspend(daemon));
 
     this.hub.areaList.forEach(area => pushProcess(this.hub.processStack, () => {
@@ -250,12 +250,12 @@ init() {
     }, PROCESS_PRIORITY_HIGHT + Dispatcher.Settings.daemonPriotityOffset + 10));
   }
 
-/**
- * The run method of the Dispatcher class that is responsible for executing directives and daemons.
- * It calculates the CPU cost of each execution and updates the performance report of these entities.
- */
-run() {
-  // Execute each directive with a high priority process and update its performance report
+  /**
+   * The run method of the Dispatcher class that is responsible for executing directives and daemons.
+   * It calculates the CPU cost of each execution and updates the performance report of these entities.
+   */
+  run() {
+    // Execute each directive with a high priority process and update its performance report
 
     this.hub.areaList.forEach(area => pushProcess(this.hub.processStack, () => {
       const start = Game.cpu.getUsed();
@@ -277,6 +277,12 @@ run() {
       const cpuCost = Game.cpu.getUsed() - start;
       daemon.performanceReport['run'] = Math.round((cpuCost + Number.EPSILON) * 100) / 100;
     }, daemon.priority + Dispatcher.Settings.daemonPriotityOffset + 20));
+  }
+
+  visuals() {
+
+    _.forEach(this.daemons, daemon => daemon.visuals());
+
   }
 
 }

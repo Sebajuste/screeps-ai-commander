@@ -109,6 +109,5 @@ export function scoutScore(probe: Agent, roomName: string) {
 
   const tickScore = explo.hasRoom(roomName) ? 1.0 - (1.0 / Game.time - (explo.getRoom(roomName)?.tick ?? 0)) : 1.0;
 
-
   return distanceScore * tickScore;
 }

@@ -19,8 +19,6 @@ const MINERAL_PRIORITY: MineralConstant[] = [
  */
 function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, searchMineral?: MineralConstant): boolean {
 
-  // log.debug(`> isRoomEligible ${roomName} for ${searchMineral}`);
-
   if (hubMap[roomName] != undefined) {
     log.debug(`> hub ${roomName} already exists`)
     return false;
@@ -36,20 +34,24 @@ function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, se
   const roomInfo = exploration.getRoom(roomName)!;
 
   if (Game.time - roomInfo.tick > 1500000) {
+    // Last exploration is too old, re-explore it
     return false;
   }
 
   if (_.find(roomInfo.minerals, info => info.type == searchMineral!) == undefined) {
+    // No mineral found
     // log.debug(`> ${roomName} no mineral ${searchMineral} searched`)
     return false;
   }
 
   if (roomInfo.sourceCount < 2 || roomInfo.haveEnnemy) {
+    // 2 sources minimum or have ennemy
     log.debug(`> ${roomName} No enough source ${roomInfo.sourceCount} or have ennemy ${roomInfo.haveEnnemy}`)
     return false;
   }
 
   if ((roomInfo.maxWallDistance ?? 0) < 7) {
+    // Not enough space to create a HUB
     log.debug(`> ${roomName} maxWallDistance to low ${roomInfo.maxWallDistance}`)
     return false;
   }
@@ -57,7 +59,6 @@ function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, se
   if (roomInfo.controlledBy !== undefined) {
     // Already controlled
     return false;
-
   }
 
   log.debug('> OK')
@@ -66,13 +67,13 @@ function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, se
 }
 
 
-function searchNextHub(mineralTarget: MineralConstant, hubMap: { [name: string]: string }) {
+function searchNextHub(mineralTarget: MineralConstant, hubMap: { [name: string]: string }, claimingRoomNames: string[]) {
   const exploration = Exploration.exploration();
 
   // Search the next room to create new HUB
   const nextRoom = _.chain(exploration.getRooms())//
     .keys()//
-    .filter(roomName => isRoomEligible(roomName, hubMap, mineralTarget))//
+    .filter(roomName => !claimingRoomNames.includes(roomName) && isRoomEligible(roomName, hubMap, mineralTarget)) // Avoid already claimed rooms and ineligible ones
     .first()//
     // .orderBy() // Nearest as builder hub
     .value();
@@ -102,6 +103,9 @@ export function analyseNextHub(hubs: { [roomName: string]: Hub }, hubMap: { [nam
     .uniq()//
     .value();
 
+
+  const claimingRoomNames = _.chain(hubs).map(hub => hub.memory.claimRooms).flatten().uniq().value();
+
   // Search the next mineral required
   const mineralTargets = _.difference(MINERAL_PRIORITY, minerals);
 
@@ -115,7 +119,7 @@ export function analyseNextHub(hubs: { [roomName: string]: Hub }, hubMap: { [nam
       return null;
     }
 
-    const nextRoom = searchNextHub(searchMineral, hubMap);
+    const nextRoom = searchNextHub(searchMineral, hubMap, claimingRoomNames);
 
     if (nextRoom) {
       return nextRoom;

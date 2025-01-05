@@ -1,10 +1,14 @@
 import _ from "lodash";
+import { Mem } from "memory/Memory";
 
-export const Settings = {
+const DEFAULT_SETTINGS = {
 
+  guiEnabled: false,
+
+  generatePixel: true,
   creepMaxTaskRun: 4,
 
-  profilerEnable: true,
+  profilerEnabled: true,
   rebuildTick: 500,
   cpuMax: Game.cpu.limit * 0.85, // 17 per hub
 
@@ -37,10 +41,12 @@ export const Settings = {
 
   upgradeMinLinkEnergy: 500,
   /**
-   * Minin energy require to fill upgrade
+   * Minimum energy require to fill upgrade
    */
   upgradeMinStorageEnergy: 10000,
 
   Username: _.first(_.filter(_.values(Game.structures), (structure: any) => structure['owner'] != undefined) as any[]).owner.username
 
 };
+
+export const Settings: { [key: string]: any } = Mem.wrap(Memory, 'settings', DEFAULT_SETTINGS);

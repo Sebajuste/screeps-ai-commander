@@ -24,6 +24,15 @@ export class CPU {
     return ++this._nextPid;
   }
 
+  static generatePixel() {
+    if( Game.cpu.generatePixel ) {
+      const result = Game.cpu.generatePixel();
+      if( result == OK) {
+        (Memory as any).generatePixel = true;
+      }
+    }
+  }
+
   /**
    * Determines if the CPU bucket is above a certain threshold to allow tasks to run.
    * This function checks the current CPU bucket value against a predefined minimum limit.
@@ -32,12 +41,11 @@ export class CPU {
    * @returns {boolean} A boolean value indicating whether tasks can be executed based on the current CPU bucket level.
    */
   static shouldRun(): boolean {
-    let result = true;
-    if (Game.cpu.bucket < Settings.cpuBucketMin) {
+    if (Game.cpu.bucket < Settings.cpuBucketMin && ! (Memory as any).generatePixel) {
       console.log(`CPU bucket is too low (${Game.cpu.bucket}). Postponing operation until bucket reaches 500.`);
-      result = false;
+      return false;
     }
-    return result;
+    return true;
   }
 
   static cpu(): CPU {
@@ -54,6 +62,10 @@ export class CPU {
    * @param {Scheduler} scheduler - An instance of the Scheduler class containing processes to be executed.
    */
   run(scheduler: Scheduler): void {
+
+    if (Game.cpu.bucket > 5000) {
+      delete (Memory as any).generatePixel;
+    }
 
     if (Game.cpu.bucket < Settings.cpuLimitBucket && !(Memory as any).generatePixel) {
       this.limitMode = true;

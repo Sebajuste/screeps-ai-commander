@@ -7,7 +7,7 @@ import { ReserveDaemon } from "daemons/expend/reserve-daemon";
 
 
 export interface OutpostMemory {
-    analysed?: boolean;
+  analysed?: boolean;
 }
 
 /**
@@ -15,42 +15,42 @@ export interface OutpostMemory {
  */
 export class OutpostDirective extends Directive {
 
-    memory: OutpostMemory;
+  memory: OutpostMemory;
 
-    daemons: {
-        defend: DefendDaemon,
-        reserve?: ReserveDaemon
-    };
+  daemons: {
+    defend: DefendDaemon,
+    reserve?: ReserveDaemon
+  };
 
-    constructor(commander: Commander, flag: Flag, hub: Hub) {
-        super(commander, flag, hub);
-        this.memory = flag.memory as OutpostMemory;
+  constructor(commander: Commander, flag: Flag, hub: Hub) {
+    super(commander, flag, hub);
+    this.memory = flag.memory as OutpostMemory;
+  }
+
+  static filter(flag: Flag): boolean {
+    return Directive.isDirective(flag, 'outpost');
+  }
+
+  spawnDaemons(): void {
+
+    const hasSource = this.hub.sources.find(source => source.pos.roomName == this.pos.roomName) != undefined;
+
+    if (!hasSource) {
+      return;
     }
 
-    static filter(flag: Flag): boolean {
-        return Directive.isDirective(flag, 'outpost');
+    this.daemons.defend = new DefendDaemon(this.hub, this);
+    if (this.hub.level > 4) {
+      this.daemons.reserve = new ReserveDaemon(this.hub, this);
     }
+  }
 
-    spawnDaemons(): void {
+  init(): void {
 
-        const hasSource = this.hub.sources.find(source => source.pos.roomName == this.pos.roomName) != undefined;
+  }
 
-        if (!hasSource) {
-            return;
-        }
+  run(): void {
 
-        this.daemons.defend = new DefendDaemon(this.hub, this);
-        if (this.hub.level > 4) {
-            this.daemons.reserve = new ReserveDaemon(this.hub, this);
-        }
-    }
-
-    init(): void {
-
-    }
-
-    run(): void {
-
-    }
+  }
 
 }

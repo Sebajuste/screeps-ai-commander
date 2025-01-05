@@ -1,20 +1,20 @@
 
 export class RandomSeeded {
   
-  private seed: number;
+  private previousValue : number;
 
   constructor(seed: number) {
-    this.seed = seed >>> 0;
+    this.previousValue  = seed >>> 0;
   }
 
-  // Génère un nombre pseudo-aléatoire entre 0 et 1
+  // Génère un nombre pseudo-aléatoire entre 0 et 1 en utilisant LCG
   private randomBits(): number {
-    this.seed ^= this.seed << 13;
-    this.seed ^= this.seed >> 17;
-    this.seed ^= this.seed << 5;
-    const result = this.seed >>> 0; // entier non signé 32 bits
-    this.seed++;
-    return result;
+    const a = 1664525;  // Multiplicateur recommandé
+    const c = 1013904223; // Incrément recommandé
+    const m = 2 ** 32; // Modulo pour un entier non signé 32 bits
+
+    this.previousValue  = (a * this.previousValue  + c) % m; // LCG formule
+    return this.previousValue;
   }
 
   random(): number {

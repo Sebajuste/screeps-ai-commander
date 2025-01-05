@@ -188,7 +188,7 @@ export class ProbeDaemon extends Daemon {
           // log.debug(`> nearRooms: ${nearRooms.length}`);
 
           const bestRooms = _.chain(nearRooms)//
-            .filter(roomName => exploration.getRoom(roomName)?.haveEnnemy == false && !outpostNames.includes(roomName) && !exploration.isInvalid(roomName) && (exploration.getRoom(roomName)?.sourceCount ?? 0) > 0 )// No ennemy, not already outpost, have energy
+            .filter(roomName => exploration.getRoom(roomName)?.haveEnnemy == false && !outpostNames.includes(roomName) && !exploration.isInvalid(roomName) && (exploration.getRoom(roomName)?.sourceCount ?? 0) > 0)// No ennemy, not already outpost, have energy
             .sortBy(roomName => {
 
               const distance = getRoomRange(this.hub.name, roomName); //Traveler.routeDistance(colony.name, roomName);
@@ -232,6 +232,29 @@ export class ProbeDaemon extends Daemon {
     this.autoRun(this.agents, agent => ScoutRole.pipeline(this.hub, agent, this.nextRooms));
 
     this.processOutpost();
+
+  }
+
+  visuals(): void {
+
+    _.forEach(this.agents, scout => {
+
+      Game.map.visual.line(
+        this.hub.pos,
+        scout.pos,
+        { color: '#f0f0f0', opacity: 0.8, width: 1.0, lineStyle: 'dashed' }
+      );
+
+      const scoutMemory: any = scout.memory;
+      const nextRoom = scoutMemory['nextRoom'];
+
+      Game.map.visual.line(
+        scout.pos,
+        new RoomPosition(25, 25, nextRoom),
+        { color: '#f0f0f0', opacity: 0.8, width: 1.0 }
+      );
+
+    });
 
   }
 

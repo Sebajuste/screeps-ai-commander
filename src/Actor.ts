@@ -59,4 +59,5 @@ export class ResourceFlowStats {
     this.input = {};
     this.output = {};
   }
+
 }

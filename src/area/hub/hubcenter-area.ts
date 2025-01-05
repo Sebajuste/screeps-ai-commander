@@ -2,6 +2,7 @@ import { Area } from "area/Area";
 import { RouterDaemon } from "daemons/civilian/router-daemon";
 import { SupplyDaemon } from "daemons/civilian/supply-daemon";
 import { ObserverDaemon } from "daemons/expend/observer-daemon";
+import { NukerDaemon } from "daemons/military/nuker-daemon";
 import { Hub } from "hub/Hub";
 import { findClosestByLimitedRange } from "utils/util-pos";
 
@@ -19,7 +20,8 @@ export class HubCenterArea extends Area {
   daemons: {
     supply: SupplyDaemon,
     router: RouterDaemon,
-    observer?: ObserverDaemon
+    observer?: ObserverDaemon,
+    nuker?: NukerDaemon
   }
 
   constructor(hub: Hub, storage: StructureStorage) {
@@ -46,6 +48,10 @@ export class HubCenterArea extends Area {
     }
     if (this.observer) {
       this.daemons.observer = new ObserverDaemon(this);
+    }
+
+    if( this.nuker) {
+      this.daemons.nuker = new NukerDaemon(this);
     }
 
   }

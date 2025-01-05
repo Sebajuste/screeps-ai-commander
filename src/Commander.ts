@@ -166,7 +166,7 @@ export class Commander {
 
   analyseRunLevel(hub: Hub) {
 
-    if (Game.cpu.bucket < Settings.hubMinimalBucket) {
+    if (Game.cpu.bucket < Settings.hubMinimalBucket && (Memory as any).generatePixel) {
       return RunLevel.MINIMAL;
     }
 
@@ -199,20 +199,15 @@ export class Commander {
   }
 
   analyseNextHubToBuild() {
-    log.info("analyseNextHubToBuild")
+    log.info("analyseNextHubToBuild");
 
     const minHubLevel = _.chain(this.hubs)//
-      .filter(hub => hub.memory.claimRooms.length == 0)//
-      .map(hub => hub.level)//
-      .min()//
-      .value() ?? 10
-
-    // const minHubLevel = _.min(_.map(this.hubs, hub => hub.level)) ?? 10;
+      .filter(hub => hub.memory.claimRooms.length == 0)// room that does not have already claim goal
+      .map(hub => hub.level).min().value() ?? 0;
 
     if (minHubLevel > 5) {
       // If we have an existing HUB that can build a new HUB
       const nextRoom = analyseNextHub(this.hubs, this.hubMap);
-
 
       if (nextRoom) {
 
@@ -249,6 +244,8 @@ export class Commander {
         }
       }
 
+    } else {
+      log.info("> no HUB ready to fork");
     }
   }
 
@@ -291,6 +288,8 @@ export class Commander {
   }
 
   visuals() {
+
+    Game.map.visual.clear();
 
     // _.forEach(this.hubs, hub => pushProcess(hub.processStack, () => hub.visuals(), PROCESS_PRIORITY_LOW + 100));
     _.forEach(this.hubs, hub => hub.visuals());

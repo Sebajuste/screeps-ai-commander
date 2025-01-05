@@ -59,14 +59,11 @@ export class ObserverDaemon extends Daemon {
 
   run(): void {
 
-    log.warning(`ObserverDaemon`)
-
     const exploration = Exploration.exploration();
 
     if (this.targetRoom) {
       const room = Game.rooms[this.targetRoom];
       if (room) {
-        log.debug(`> analyseRoom ${room.name}`)
         exploration.analyseRoom(room);
         this.targetRoom = undefined;
       } else {
@@ -74,8 +71,8 @@ export class ObserverDaemon extends Daemon {
 
         if (this.hubCenterArea.observer) {
           const result = this.hubCenterArea.observer.observeRoom(this.targetRoom);
-          log.debug(`> observeRoom : ${result}`);
           if (result != OK) {
+            log.error(`Cannot observeRoom ${this.targetRoom}`);
             this.targetRoom = undefined;
           }
         }
@@ -92,21 +89,17 @@ export class ObserverDaemon extends Daemon {
         .value();
 
       if (targetRoom) {
-        log.debug(`> roomInfo: ${targetRoom}`);
         this.targetRoom = targetRoom;
         const result = this.hubCenterArea.observer.observeRoom(this.targetRoom);
-        log.debug(`> observeRoom : ${result}`);
       }
 
     }
 
     if (!this.targetRoom && this.nextRooms.length > 0) {
       this.targetRoom = this.nextRooms.pop();
-      log.debug(`> next nexw room ${this.targetRoom}`);
     }
 
     if (!this.targetRoom) {
-      log.warning(`> No next room`);
       this.hub.dispatcher.suspendDaemon(this, 20);
     }
 

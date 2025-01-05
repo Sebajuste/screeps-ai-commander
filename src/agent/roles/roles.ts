@@ -513,10 +513,14 @@ export class ScoutRole {
 
       log.debug(`ScoutRole for ${agent.print}. Invalid current room, agentMemory: ${nextRoom}`);
 
-
       const roomPath = Pathing.roomPath(agent.room.name, nextRoom);
 
-      console.log(`> roomPath: ${JSON.stringify(roomPath)}`)
+      if( !roomPath ) {
+        // Remove room if no path is reachable
+        delete agentMemory['nextRoom'];
+        _.remove(nextRooms, it => it == nextRoom);
+        return pipeline;
+      }
 
       pipeline.push(Tasks.wait(new RoomPosition(25, 25, nextRoom), 20));
       return pipeline;

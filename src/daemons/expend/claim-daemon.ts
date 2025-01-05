@@ -32,7 +32,7 @@ export class ClaimDaemon extends Daemon {
 
   init(): void {
 
-    if( Game.rooms[this.pos.roomName] && ! Game.rooms[this.pos.roomName].controller?.my )  {
+    if (Game.rooms[this.pos.roomName] && !Game.rooms[this.pos.roomName].controller?.my) {
       // Avoid spawn if room is controlled
       this.spawnHandler();
     }
@@ -42,6 +42,21 @@ export class ClaimDaemon extends Daemon {
   run(): void {
 
     this.autoRun(this.agents, agent => ClaimerRole.pipeline(this.pos.roomName));
+
+  }
+
+  visuals(): void {
+
+    Game.map.visual.line(
+      this.hub.pos,
+      this.pos,
+      { color: '#781a4e', opacity: 0.8, width: 1.0, lineStyle: 'dashed' }
+    );
+
+    Game.map.visual.circle(
+      this.pos,
+      { fill: '#1a3d78', opacity: 0.5, radius: 50, stroke: '#808080' }
+    );
 
   }
 

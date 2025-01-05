@@ -5,7 +5,6 @@ import { Hub, RunActivity } from "hub/Hub";
 import { log } from "utils/log";
 import _ from "lodash";
 import { TaskPipeline } from "task/task-pipeline";
-import { Pathing } from "utils/pathing";
 import { PROCESS_PRIORITY_NORMAL } from "cpu/process";
 
 export const DEFAULT_PRESPAWN = 50;
@@ -195,5 +194,9 @@ export abstract class Daemon implements Actor {
   abstract init(): void;
 
   abstract run(): void;
+
+  visuals(): void {
+
+  }
 
 }

@@ -32,6 +32,11 @@ import { Agent } from "agent/Agent";
 import { deserializeTasks, serializeTasks } from "task/task-initializer";
 import { BuildDaemon, Daemon, HarvestDaemon, HaulerDaemon, ProbeDaemon, UpgradeDaemon } from "daemons";
 import { Scheduler } from "cpu/scheduler";
+import { CommandSystem, setupCommandSystem } from "utils/commands";
+
+
+export const command = new CommandSystem();
+
 
 let commander: Commander | null = null;
 
@@ -96,6 +101,27 @@ function registerProfiler() {
 
 }
 
+function registerCommands() {
+
+  command.registerCommand('hello', () => {
+    console.log('Hello World')
+  });
+
+  command.registerCommand('gui-enabled', (enabled: string) => {
+    Settings.guiEnabled = (enabled === "true");
+  });
+
+  command.registerCommand('settings', (name: string, value: string) => {
+    if (value) {
+      Settings[name] = JSON.parse(value);
+      const memory = Memory as any;
+      memory.settings[name] = JSON.parse(value);
+    }
+    log.info(`Settings - [${name}] = ${Settings[name]}`);
+  });
+
+}
+
 function main() {
   cleanMemory();
 
@@ -103,21 +129,16 @@ function main() {
 
   if (!CPU.shouldRun()) return;
 
-  /*
-  if (Game.cpu.bucket == 10000) {
-    (Memory as any).generatePixel = true;
-    Game.cpu.generatePixel();
-  }
-  */
 
-  if (Game.cpu.bucket > 5000) {
-    delete (Memory as any).generatePixel;
+  if (Game.cpu.bucket == 10000 && Settings.generatePixel) {
+    CPU.generatePixel();
   }
 
   if (commander == null || Game.time % Settings.rebuildTick == 0) {
     log.info('REBUILD');
     commander = new Commander();
     commander.build();
+    registerCommands();
   } else {
     commander.refresh();
   }
@@ -128,7 +149,9 @@ function main() {
   const scheduler: Scheduler = commander.scheduleProcess();
   CPU.cpu().run(scheduler);
 
-  commander.visuals();
+  if (Settings.guiEnabled) {
+    commander.visuals();
+  }
 
   const elapsedTime = Date.now() - start;
 
@@ -154,7 +177,9 @@ function mainWithProfiler() {
 
 export const loop = () => {
 
-  if (Settings.profilerEnable) {
+  setupCommandSystem(command);
+
+  if (Settings.profilerEnabled) {
     mainWithProfiler();
   } else {
     try {

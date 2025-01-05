@@ -36,7 +36,7 @@ export function generateRandomName(seed: number): string {
   const suffix = suffixes[random.randomInt(0, suffixes.length - 1)];
 
   // Assembler le nom
-  return `${prefix}${base}${suffix}`;
+  return `${prefix}${base} ${suffix}`;
 }
 
 export function getSeedFromRoomName(roomName: string): number {

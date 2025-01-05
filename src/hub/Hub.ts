@@ -8,7 +8,7 @@ import { getMultiRoomRange } from "utils/util-pos";
 import { LogisticsNetwork } from "logistics/logistics-network";
 import _, { Dictionary } from "lodash";
 import { UpgradeArea } from "area/hub/upgrade-area";
-import { PROCESS_PRIORITY_HIGHT, PROCESS_PRIORITY_LOW, PROCESS_PRIORITY_NORMAL, ProcessStack, pushProcess } from "cpu/process";
+import { PROCESS_PRIORITY_HIGHT, PROCESS_PRIORITY_NORMAL, ProcessStack, pushProcess } from "cpu/process";
 import { setHarvestFlag } from "room/room-analyse";
 import { RoomPlanner } from "./room-planner/room-planner";
 import { BunkerRoomPlanner } from "./room-planner/bunker-room-planner";
@@ -20,7 +20,6 @@ import { MineralArea } from "area/hub/mineral-area";
 import { Commander } from "Commander";
 import { Directive } from "directives/Directive";
 import { AgentFactoryRemoteArea } from "area/hub/agent-factory-remote";
-
 
 interface HubMemory {
   bootstrap: boolean;
@@ -301,18 +300,25 @@ export class Hub {
 
     if (this.spawns[0]) {
       this.areas.agentFactory = new AgentFactoryArea(this, this.spawns[0]);
-      Directive.removeFlagIfPresent(new RoomPosition(25, 25, this.room.name), 'claim');
+
+      const claimFlag = Directive.getFlag(new RoomPosition(25, 25, this.room.name), 'claim');
+      if (claimFlag) {
+        // Remove the claim goal
+        const claimDirective = this.commander.directives[claimFlag.name];
+        claimDirective.remove();
+      }
+
     } else {
 
       const claimFlag = _.find(Game.flags, flag => flag.name.includes('claim'));
 
-      if( claimFlag ) {
-        const flagMemory : any = claimFlag.memory;
+      if (claimFlag) {
+        const flagMemory: any = claimFlag.memory;
         const mainHubName = flagMemory['hub'];
 
         const mainHub = this.commander.hubs[mainHubName];
 
-        if( mainHub && mainHub.areas.agentFactory ) {
+        if (mainHub && mainHub.areas.agentFactory) {
           this.areas.agentFactory = new AgentFactoryRemoteArea(this, mainHub.areas.agentFactory);
         } else {
           log.warning('Cannot find HUB ', mainHubName)
@@ -331,7 +337,7 @@ export class Hub {
       this.areas.minerals = this.minerals.map(mineral => new MineralArea(this, mineral));
     }
 
-    if( this.spawns[0] ) {
+    if (this.spawns[0]) {
       this.areas.upgrade = new UpgradeArea(this);
     }
 
@@ -487,8 +493,26 @@ export class Hub {
 
   visuals() {
 
-    Game.map.visual.circle(this.pos, { fill: 'transparent', radius: 1.5 * 50, stroke: '#ff0000' });
-    // Game.map.visual.circle(nuker.pos, { fill: 'transparent', radius: NUKE_RANGE * 50, stroke: '#ff0000' });
+    Game.map.visual.circle(this.pos, { fill: '#79aed1', opacity: 0.5, radius: 50, stroke: '#808080' });
+
+    _.forEach(this.outposts, output => {
+
+      const outpostPos = new RoomPosition(25, 25, output.name);
+
+      Game.map.visual.line(
+        this.pos,
+        outpostPos,
+        { color: '#79aed1', opacity: 0.8, width: 1.0, lineStyle: 'dashed' }
+      );
+
+      Game.map.visual.circle(
+        outpostPos,
+        { fill: '#74cfc2', opacity: 0.5, radius: 25, stroke: '#808080' }
+      );
+    });
+
+    this.dispatcher.visuals();
+
 
     let x = 1;
     let y = 8;
