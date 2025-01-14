@@ -118,6 +118,11 @@ export class Exploration {
     return _.uniq(result);
   }
 
+  /**
+   * Check if a room needs to be updated based on its last update time and the room TTL.
+   * @param {string} roomName - The name of the room to check for updates.
+   * @returns {boolean} True if the room needs an update, false otherwise.
+   */
   needUpdate(roomName: string): boolean {
     if (!this.hasRoom(roomName)) {
       return true;

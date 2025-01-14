@@ -12,6 +12,10 @@ import { log } from "utils/log";
 
 export class RouterDaemon extends Daemon {
 
+  static Settings = {
+    towerMinFreeEnergy: 100
+  };
+
   commandCenter: HubCenterArea;
 
   constructor(commandCenter: HubCenterArea, priority?: number) {
@@ -37,12 +41,23 @@ export class RouterDaemon extends Daemon {
 
   }
 
-  private createCommanderTask(router: Agent): TaskPipeline {
+  /**
+   * This function creates and returns a task pipeline for a router agent to perform various tasks based on the current state of its storage, links, and structures in the hub center area. The tasks include taking energy from available sources like dropped resources or tombstones, filling up towers, spawns, links, terminals, powerSpawns, and nukers with energy, and storing excess energy or transferring imported resources to/from storage and terminal.
+   * @param {Agent} router - The router agent for which the task pipeline is created.
+   * @returns {TaskPipeline} A TaskPipeline that consists of tasks for the router agent to perform based on the current state of its storage, links, and structures in the hub center area.
+   */
+  private createRouterTask(router: Agent): TaskPipeline {
 
     const link = this.commandCenter.link;
     const storage = this.commandCenter.storage;
 
     let _energyDroped: Resource | null | undefined = undefined;
+
+    /**
+     * This function returns the dropped resource of type RESOURCE_ENERGY (Energy) at the current position of the router, if any.
+     * If there is no energy drop available or the energy drop has been previously processed and removed, it returns null.
+     * @returns {Resource | null} The dropped energy resource, or null if not found.
+     */
     const getEnergyDroped = (): Resource | null => {
       if (_energyDroped !== undefined && _energyDroped !== null) {
         // Is Init
@@ -61,6 +76,11 @@ export class RouterDaemon extends Daemon {
     }
 
     let _energyAvailable: number | null = null;
+
+    /**
+     * This function returns the total amount of energy available in the storage and dropped resources on the current position of the router.
+     * @returns {number} The total amount of energy available.
+     */
     const getEnergyAvailable = () => {
       if (_energyAvailable !== null) {
         return _energyAvailable;
@@ -68,6 +88,12 @@ export class RouterDaemon extends Daemon {
       return _energyAvailable = storage.store.getUsedCapacity(RESOURCE_ENERGY) + (getEnergyDroped()?.amount ?? 0);
     };
 
+    /**
+     * This function creates and returns a TaskPipeline to take a specified resource from various sources, such as a dropped resource, tombstone, link, or storage.
+     * @param {ResourceConstant} resource - The type of resource to be taken.
+     * @param {number} amount - The quantity of the resource to be taken.
+     * @returns {TaskPipeline} A TaskPipeline that consists of Tasks to take the specified resource from available sources.
+     */
     const takeResourcePipelineHandler = (resource: ResourceConstant, amount: number) => {
 
       const pipeline: TaskPipeline = [];
@@ -95,7 +121,7 @@ export class RouterDaemon extends Daemon {
         freeCapacity = freeCapacity - take;
       }
 
-      if (resource == RESOURCE_ENERGY && link && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && amount > 0 && freeCapacity > 0) {
+      if (freeCapacity > 0 && resource == RESOURCE_ENERGY && link && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && amount > 0) {
         // Take energy from link
         const quantity = Math.min(amount ?? 1000, Settings.hubCenterMinLinkEnergy - link.store.getUsedCapacity(RESOURCE_ENERGY));
         const take = Math.min(freeCapacity, quantity);
@@ -104,7 +130,7 @@ export class RouterDaemon extends Daemon {
         freeCapacity = freeCapacity - take;
       }
 
-      if (storage && storage.store.getUsedCapacity(resource) > 0 && amount > 0 && freeCapacity > 0) {
+      if (freeCapacity > 0 && storage && storage.store.getUsedCapacity(resource) > 0 && amount > 0) {
         // Take resource from storage
         const take = Math.min(freeCapacity, amount);
         pipeline.push(Tasks.withdraw(storage, resource, take));
@@ -115,6 +141,13 @@ export class RouterDaemon extends Daemon {
       return pipeline;
     };
 
+    /**
+     * This function creates and returns a TaskPipeline to transfer a specified resource from a router to another structure, such as a tower, spawn, link, terminal, powerSpawn, or nuker. It also handles taking the required amount of resource from available sources like dropped resources, tombstones, link, or storage.
+     * @param {StoreStructure} structure - The destination structure where the resource will be transferred.
+     * @param {ResourceConstant} resource - The type of resource to be filled. Default is RESOURCE_ENERGY (Energy).
+     * @param {number} quantity - The desired amount of the resource to fill in the structure. If undefined, it fills up to the structure's free capacity.
+     * @returns {TaskPipeline} A TaskPipeline that consists of Tasks to fill the specified structure with the required amount of resource from available sources.
+     */
     const fillResourceHandler: (structure: StoreStructure, resource: ResourceConstant, quantity?: number) => TaskPipeline = (structure, resource = RESOURCE_ENERGY, quantity?: number) => {
 
       const fillAmount = quantity ? Math.min(quantity, structure.store.getFreeCapacity(resource) ?? 0) : structure.store.getFreeCapacity(resource) ?? 0;
@@ -148,7 +181,7 @@ export class RouterDaemon extends Daemon {
      * Keep Tower ready to use
      */
     const tower = _.first(_.orderBy(this.commandCenter.towers, (tower: StructureTower) => tower.store.getUsedCapacity(RESOURCE_ENERGY), ['asc'])) as StructureTower | undefined;
-    if (tower && tower.store.getFreeCapacity(RESOURCE_ENERGY) >= 300) {
+    if (tower && tower.store.getFreeCapacity(RESOURCE_ENERGY) >= RouterDaemon.Settings.towerMinFreeEnergy) {
       // Tower need refuel
       return fillResourceHandler(tower, RESOURCE_ENERGY);
     }
@@ -166,13 +199,13 @@ export class RouterDaemon extends Daemon {
      * Keep Link ready to use
      */
     if (link) {
-      if (link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && router.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-        // Vacuum link
+      if (router.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && (!storage || storage.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubStorageMaxEnergy)) {
+        // Vacuum link only if Storage is not full
         const amount = Math.min(link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy, router.store.getFreeCapacity(RESOURCE_ENERGY));
         return [Tasks.withdraw(link, RESOURCE_ENERGY, amount), Tasks.transfer(storage, RESOURCE_ENERGY)];
       }
 
-      if (link.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubCenterMinLinkEnergy && storage.store.getUsedCapacity(RESOURCE_ENERGY) > 10000) {
+      if (link.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubCenterMinLinkEnergy && storage.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubStorageMinEnergy) {
         // Fill Link
 
         const fillAmount = Settings.hubCenterMinLinkEnergy - link.store.getUsedCapacity(RESOURCE_ENERGY);
@@ -367,7 +400,7 @@ export class RouterDaemon extends Daemon {
 
   run(): void {
 
-    this.autoRun(this.agents, agent => this.createCommanderTask(agent));
+    this.autoRun(this.agents, agent => this.createRouterTask(agent));
 
   }
 

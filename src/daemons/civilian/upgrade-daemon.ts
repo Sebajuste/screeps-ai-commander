@@ -52,7 +52,8 @@ export class UpgradeDaemon extends Daemon {
 
     const template = this.upgradeArea.container ? UPGRADER_BATTERY_TEMPLATE : UPGRADER_TEMPLATE;
 
-    const bodyParts = isHubMaxLevel ? template.bodyParts[0] : selectBodyParts(template, this.hub.room.energyAvailable);
+    // const bodyParts = isHubMaxLevel ? template.bodyParts[0] : selectBodyParts(template, this.hub.room.energyAvailable);
+    const bodyParts = selectBodyParts(template, this.hub.room.energyAvailable);
 
     const setup: AgentSetup = {
       role: 'upgrader',
@@ -60,9 +61,9 @@ export class UpgradeDaemon extends Daemon {
     };
 
     if (isHubMaxLevel) {
-      if (this.hub.controller.ticksToDowngrade < 100000) {
-        this.wishList(1, setup, options);
-      }
+      // if (this.hub.controller.ticksToDowngrade < 100000) {
+      this.wishList(1, setup, options);
+      // }
       return;
     }
 
@@ -98,12 +99,7 @@ export class UpgradeDaemon extends Daemon {
         }
       }
     }
-    /*
-    if ((!this.upgradeArea.container && !this.link) || this.upgradeArea.container) {
-      // Spawn upgrader using energy from drop, or container
-      this.spawnHandler();
-    }
-    */
+
     this.spawnHandler();
 
     if (!this.link && this.container && this.container.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
@@ -115,7 +111,7 @@ export class UpgradeDaemon extends Daemon {
       const minEnergyToRequest = this.container.store.getCapacity() * 0.8;
 
       // if ((!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 1000) && this.container.store.getFreeCapacity(RESOURCE_ENERGY) > minEnergyToRequest) {
-      if( this.container.store.getFreeCapacity(RESOURCE_ENERGY) > minEnergyToRequest ) {
+      if (this.container.store.getFreeCapacity(RESOURCE_ENERGY) > minEnergyToRequest) {
         // Request energy into the container
         this.hub.logisticsNetwork.requestInput(this.container, RESOURCE_ENERGY);
       }

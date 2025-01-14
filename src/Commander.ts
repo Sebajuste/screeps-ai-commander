@@ -206,11 +206,14 @@ export class Commander {
       .map(hub => hub.level).min().value() ?? 0;
 
     if (minHubLevel > 5) {
-      // If we have an existing HUB that can build a new HUB
+      // Enable expansion only when all hubs are at least level 6
+
       const nextRoom = analyseNextHub(this.hubs, this.hubMap);
 
       if (nextRoom) {
+        // If 1 room is found to build a new HUB
 
+        // 1. Select the nearest room to create a new HUB
         const startHub = _.chain(this.hubs)//
           .filter(hub => hub.level > 5)//
           .orderBy(hub => getRoomRange(hub.pos.roomName, nextRoom), ['asc'])//
@@ -221,17 +224,18 @@ export class Commander {
           // Select the nearest HUB to create colonizer
 
           if (!startHub.memory.claimRooms.includes(nextRoom)) {
+            // 2. Add next room to claim list of the selected hub
             startHub.memory.claimRooms.push(nextRoom);
           }
 
           if (Game.rooms[nextRoom]) {
+            // 3. If the room is visible, check if there are no ennemies in it
 
             const roomInfo = Exploration.exploration().getRoom(nextRoom);
             if (roomInfo && !roomInfo.haveEnnemy) {
 
               try {
                 const createResult = Directive.createFlagIfNotPresent(new RoomPosition(25, 25, nextRoom), 'claim', COLOR_ORANGE);
-
                 log.debug(`startHub: ${startHub.name} to ${nextRoom} > createResult: ${createResult}`)
               } catch (e) {
                 log.error(e);

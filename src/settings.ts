@@ -32,12 +32,12 @@ const DEFAULT_SETTINGS = {
     }
   },
 
-
+  hubStorageMinEnergy: 10000,
   hubStorageMaxEnergy: 200000,
   hubStorageMaxResource: 50000,
 
   hubCenterMinLinkEnergy: 300,
-  hubTerminalEnergy: 5000,
+  hubTerminalEnergy: 10000,
 
   upgradeMinLinkEnergy: 500,
   /**

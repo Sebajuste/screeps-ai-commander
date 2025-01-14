@@ -105,6 +105,19 @@ export class SupplyDaemon extends Daemon {
 
   }
 
+  /**
+   * Checks if any energy structure requires filling and updates the `_energyFull` flag accordingly.
+   */
+  private checkEnergyRequired(): void {
+    const fillRequired = _.find(this.destinations, structure => structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
+    const hasFillRequired = fillRequired != undefined;
+    this._energyFull = !hasFillRequired;
+  }
+
+  /**
+   * Populates the structure of energy sources and destinations in the hub.
+   * This method updates the lists of storage containers, towers, spawns, extensions, and labs that can be used as energy sources or destinations for supply operations.
+   */
   private populateStructure() {
 
     if (!this.sources) {
@@ -120,36 +133,11 @@ export class SupplyDaemon extends Daemon {
     if (!this.destinations || this.destinations.length == 0) {
       // Reload destination list if empty or not init
 
-      /*
-      let towerNotHubCenter: StructureTower[] = [];
-      if (this.hub.areas.hubCenter && this.hub.areas.hubCenter.daemons.router) {
-        const hubCenter = this.hub.areas.hubCenter;
-        towerNotHubCenter = this.hub.towers.filter(tower => !hubCenter.towers.includes(tower) && tower.store.getFreeCapacity(RESOURCE_ENERGY) > 100);
-      } else {
-        towerNotHubCenter = this.hub.towers.filter(tower => tower.store.getFreeCapacity(RESOURCE_ENERGY) > 100);
-      }
-      */
       const hubCenter = this.hub.areas.hubCenter;
-      // this.hub.towers.filter(tower => hubCenter?.towers.includes(tower))
       const towerNotHubCenter = (hubCenter && hubCenter.daemons.router) ? _.difference(this.hub.towers, hubCenter?.towers) : this.hub.towers;
-
-      // const towerNotHubCenter = this.hub.towers.filter(tower => !this.hub.areas.hubCenter || !this.hub.areas.hubCenter.daemons.router || !this.hub.areas.hubCenter.towers.includes(tower));
-
-      /*
-      this.destinations = _.chain([...this.hub.extentions, ...this.hub.spawns, ...this.hub.labs, ...towerNotHubCenter])//
-        .compact()//
-        // .filter((structure: any) => structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0)//
-        .value() as StoreStructure[];
-        */
-
       this.destinations = _.compact([...this.hub.extentions, ...this.hub.spawns, ...this.hub.labs, ...towerNotHubCenter]) as EnergyStructure[];
-
-      const fillRequred = _.find(this.destinations, structure => structure.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
-
-      const hasFillRequired = fillRequred != undefined;
-      this._energyFull = !hasFillRequired;
-
     }
+
   }
 
   refresh(): void {
@@ -230,7 +218,12 @@ export class SupplyDaemon extends Daemon {
 
   }
 
-  endTaskPipeline(supplier: Agent): TaskPipeline {
+  /**
+   * Ends the task pipeline for a supplier agent.
+   * This function is responsible for cleaning up any resources or tasks associated with the supplier, and returning it to standby position.
+   * @param {Agent} supplier - The supplier agent whose task pipeline needs to be ended.
+   */
+  private endTaskPipeline(supplier: Agent): TaskPipeline {
     const pipeline: TaskPipeline = [];
     if (this.hub.storage && supplier.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
       // Vacuum supplier energy
@@ -242,6 +235,8 @@ export class SupplyDaemon extends Daemon {
   }
 
   run(): void {
+
+    this.checkEnergyRequired();
 
     if (this._energyFull) {
       // Do nothing if energy is full
@@ -256,21 +251,19 @@ export class SupplyDaemon extends Daemon {
       }
 
       if (supplier.store.getUsedCapacity(RESOURCE_ENERGY) == 0 && (!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) == 0)) {
-        // No energy to fill
+        // If supplier is empty AND hub storage is empty, do nothing
         return this.endTaskPipeline(supplier);
       }
-
-      this.populateStructure();
 
       const destinationIds = this.supplierAssignements[supplier.name];
-
       const destinations = _.compact(_.map(destinationIds, id => _.find(this.destinations, destination => destination.id == id)));
 
-      const task = SupplierRole.pipeline(this.hub, supplier, this.sources!, destinations);
-      if (!task || task.length == 0) {
+      const taskPipeline = SupplierRole.pipeline(this.hub, supplier, this.sources!, destinations);
+      if (!taskPipeline || taskPipeline.length == 0) {
+
         return this.endTaskPipeline(supplier);
       }
-      return task;
+      return taskPipeline;
 
     });
 
