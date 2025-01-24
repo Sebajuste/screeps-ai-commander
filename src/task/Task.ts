@@ -92,7 +92,7 @@ export abstract class Task {
       const result = this.action(creep);
 
       if (result != OK) {
-        log.debug(`${printCreep(creep)} run task [${this.name}] result : ${result}`);
+        log.warning(`${printCreep(creep)} run task [${this.name}] result : ${result} for ${this.target} with ${JSON.stringify(this.options)}`);
       }
 
       if (this.options.oneShoot || result != OK || this.isFinished(creep)) {

@@ -1,7 +1,6 @@
 import { Directive } from "directives/Directive";
 import { Hub } from "hub/Hub";
 import _ from "lodash";
-import { log } from "utils/log";
 import { getMultiRoomRange } from "utils/util-pos";
 
 export function setHarvestFlag(hub: Hub, source: Source) {
@@ -50,7 +49,7 @@ export function registerOutpost(hub: Hub, roomName: string) {
     return;
   }
 
-  if( hub.spawns.length == 0) {
+  if (hub.spawns.length == 0) {
     // Not outpost for incubation hub
   }
 

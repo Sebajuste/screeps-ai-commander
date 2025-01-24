@@ -6,7 +6,9 @@ import { log } from "utils/log";
 const MINERAL_PRIORITY: MineralConstant[] = [
   RESOURCE_LEMERGIUM,
   RESOURCE_OXYGEN,
-  RESOURCE_KEANIUM
+  RESOURCE_KEANIUM,
+  RESOURCE_ZYNTHIUM,
+  RESOURCE_UTRIUM,
 ];
 
 /**
@@ -20,7 +22,7 @@ const MINERAL_PRIORITY: MineralConstant[] = [
 function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, searchMineral?: MineralConstant): boolean {
 
   if (hubMap[roomName] != undefined) {
-    log.debug(`> hub ${roomName} already exists`)
+    // log.debug(`> hub ${roomName} already exists`)
     return false;
   }
 
@@ -33,20 +35,15 @@ function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, se
 
   const roomInfo = exploration.getRoom(roomName)!;
 
-  if (Game.time - roomInfo.tick > 1500000) {
-    // Last exploration is too old, re-explore it
-    return false;
-  }
-
   if (_.find(roomInfo.minerals, info => info.type == searchMineral!) == undefined) {
     // No mineral found
     // log.debug(`> ${roomName} no mineral ${searchMineral} searched`)
     return false;
   }
 
-  if (roomInfo.sourceCount < 2 || roomInfo.haveEnnemy) {
+  if (roomInfo.sourceCount < 2) {
     // 2 sources minimum or have ennemy
-    log.debug(`> ${roomName} No enough source ${roomInfo.sourceCount} or have ennemy ${roomInfo.haveEnnemy}`)
+    log.debug(`> ${roomName} No enough source ${roomInfo.sourceCount}`)
     return false;
   }
 
@@ -56,8 +53,21 @@ function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, se
     return false;
   }
 
+  if (Game.time - roomInfo.tick > 1500000) {
+    // Last exploration is too old, re-explore it
+    log.debug(`> ${roomName} Need to refresh information`);
+    return false;
+  }
+
+  if (roomInfo.haveEnnemy) {
+    // 2 sources minimum or have ennemy
+    log.debug(`> ${roomName} Have ennemy ${roomInfo.haveEnnemy}`)
+    return false;
+  }
+
   if (roomInfo.controlledBy !== undefined) {
     // Already controlled
+    log.debug(`> ${roomName} Is already controlled`)
     return false;
   }
 
@@ -78,7 +88,7 @@ function searchNextHub(mineralTarget: MineralConstant, hubMap: { [name: string]:
     // .orderBy() // Nearest as builder hub
     .value();
 
-  log.debug(`> Next room : ${nextRoom}`);
+  log.debug(`> Next room for [${mineralTarget}] : ${nextRoom}`);
 
   return nextRoom;
 }
@@ -111,8 +121,6 @@ export function analyseNextHub(hubs: { [roomName: string]: Hub }, hubMap: { [nam
 
   do {
     const searchMineral = mineralTargets.shift();
-
-    // console.log(`> minerals: `, minerals, `, searchMineral: ${searchMineral}`)
 
     if (!searchMineral) {
       log.debug(`> No mineral found`);

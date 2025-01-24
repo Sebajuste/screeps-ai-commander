@@ -8,7 +8,7 @@ import _ from "lodash";
 import { Settings } from "settings";
 import { StoreStructure, Tasks } from "task/task-builder";
 import { TaskPipeline } from "task/task-pipeline";
-import { log } from "utils/log";
+import { Log, log } from "utils/log";
 
 export class RouterDaemon extends Daemon {
 
@@ -201,15 +201,19 @@ export class RouterDaemon extends Daemon {
     if (link) {
       if (router.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && (!storage || storage.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubStorageMaxEnergy)) {
         // Vacuum link only if Storage is not full
-        const amount = Math.min(link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy, router.store.getFreeCapacity(RESOURCE_ENERGY));
+        const amount = Math.min(link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy, Math.abs(router.store.getFreeCapacity(RESOURCE_ENERGY)));
         return [Tasks.withdraw(link, RESOURCE_ENERGY, amount), Tasks.transfer(storage, RESOURCE_ENERGY)];
       }
 
-      if (link.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubCenterMinLinkEnergy && storage.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubStorageMinEnergy) {
+      if (link.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubCenterMinLinkEnergy && storage && storage.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubStorageMinEnergy) {
         // Fill Link
 
+        const withdrawAmount = Math.max(0, storage.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubStorageMinEnergy);
         const fillAmount = Settings.hubCenterMinLinkEnergy - link.store.getUsedCapacity(RESOURCE_ENERGY);
-        const takeAmount = Math.max(0, fillAmount - router.store.getUsedCapacity(RESOURCE_ENERGY));
+
+        const minAmount = Math.min(withdrawAmount, fillAmount);
+
+        const takeAmount = Math.max(0, minAmount - router.store.getUsedCapacity(RESOURCE_ENERGY));
         const pipeline: TaskPipeline = [];
 
         if (takeAmount > 0) {
@@ -352,6 +356,8 @@ export class RouterDaemon extends Daemon {
 
     }
 
+    log.debug(`${router.print} No task to be defined`);
+
     return [];
   }
 
@@ -378,23 +384,6 @@ export class RouterDaemon extends Daemon {
       }
 
     }
-
-
-    /*
-    const terminal = this.commandCenter.terminal;
-    const storage = this.commandCenter.storage;
-    
-    if (terminal && storage) {
-      _.forEach(this.hub.minerals, mineral => {
-
-        if (terminal.store.getUsedCapacity(mineral.mineralType) > 0) {
-          // Mineral can be tansfered to other colonies
-          this.hub.terminalNetwork.requestOutput(terminal, mineral.mineralType);
-        }
-
-      });
-    }
-    */
 
   }
 

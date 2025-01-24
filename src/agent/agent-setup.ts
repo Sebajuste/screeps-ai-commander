@@ -113,6 +113,14 @@ export const SUPPLY_TEMPLATE: BodyTemplate = {
   ]
 }
 
+export const UPGRADER_LOW_TEMPLATE: BodyTemplate = {
+  bodyParts: [
+    [WORK, CARRY, MOVE],
+    [WORK, CARRY, CARRY, MOVE, MOVE], // 1-WORK 2-CARRY 2-MOVE
+    [WORK, WORK, WORK, WORK, WORK, CARRY, MOVE, MOVE, MOVE], // 5-WORK 1-CARRY 3-MOVE
+  ]
+};
+
 export const UPGRADER_TEMPLATE: BodyTemplate = {
   bodyParts: [
     [WORK, CARRY, MOVE],

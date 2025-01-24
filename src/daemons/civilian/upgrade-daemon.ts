@@ -1,6 +1,6 @@
 import { AgentRequestOptions, AgentSetup } from "agent/Agent";
 import { countBodyPart, countValidBodyPart, selectBodyParts } from "agent/agent-builder";
-import { AGENT_PRIORITIES, HAULER_TEMPLATE, UPGRADER_BATTERY_TEMPLATE, UPGRADER_TEMPLATE } from "agent/agent-setup";
+import { AGENT_PRIORITIES, HAULER_TEMPLATE, UPGRADER_BATTERY_TEMPLATE, UPGRADER_BOOST_TEMPLATE, UPGRADER_LOW_TEMPLATE, UPGRADER_TEMPLATE } from "agent/agent-setup";
 import { UpgradeRole } from "agent/roles/roles";
 import { UpgradeArea } from "area/hub/upgrade-area";
 import { Daemon } from "daemons/daemon";
@@ -42,6 +42,26 @@ export class UpgradeDaemon extends Daemon {
     return null;
   }
 
+  private selectTemplate() {
+
+    if (this.upgradeArea.container) {
+
+      return UPGRADER_BATTERY_TEMPLATE;
+
+    } else if (this.hub.storage) {
+
+      if (this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 100000) {
+        return UPGRADER_BOOST_TEMPLATE;
+      } else if (this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) < 10000) {
+        return UPGRADER_LOW_TEMPLATE;
+      }
+
+    }
+
+    return UPGRADER_TEMPLATE;
+
+  }
+
   private spawnHandler() {
 
     const options: AgentRequestOptions = {
@@ -50,7 +70,7 @@ export class UpgradeDaemon extends Daemon {
 
     const isHubMaxLevel = this.hub.level == 8;
 
-    const template = this.upgradeArea.container ? UPGRADER_BATTERY_TEMPLATE : UPGRADER_TEMPLATE;
+    const template = this.selectTemplate();
 
     // const bodyParts = isHubMaxLevel ? template.bodyParts[0] : selectBodyParts(template, this.hub.room.energyAvailable);
     const bodyParts = selectBodyParts(template, this.hub.room.energyAvailable);
@@ -67,7 +87,12 @@ export class UpgradeDaemon extends Daemon {
       return;
     }
 
-    const quantity = (this.hub.links.length == 0 || (this.hub.storage && this.hub.storage?.store.getUsedCapacity(RESOURCE_ENERGY) > UpgradeDaemon.Settings.boostEnergyAmount)) ? 2 : 1;
+    const constructionSites = this.hub.constructionSitesByRooms[this.roomName];
+
+    const haveLink = this.hub.links.length > 0;
+    const haveConstruction = constructionSites && constructionSites.length > 0;
+
+    const quantity = ((!haveLink && !haveConstruction) || (this.hub.storage && this.hub.storage?.store.getUsedCapacity(RESOURCE_ENERGY) > UpgradeDaemon.Settings.boostEnergyAmount)) ? 2 : 1;
 
     const energySource = this.link ?? this.container
 

@@ -120,6 +120,11 @@ function registerCommands() {
     log.info(`Settings - [${name}] = ${Settings[name]}`);
   });
 
+  command.registerCommand('exploration-get-room', (roomName: string) => {
+    const room = Exploration.exploration().getRoom(roomName);
+    log.info('Room : ', JSON.stringify(room));
+  });
+
 }
 
 function main() {

@@ -20,7 +20,7 @@ export class BuildDirective extends Directive {
 
     this.daemons.build = new BuildDaemon(this.hub, this);
 
-    if( this.flag.pos.roomName == this.hub.name ) {
+    if (this.flag.pos.roomName == this.hub.name) {
       this.daemons.roomPlanner = new RoomPlannerDaemon(this.hub, this, this.hub.roomPlanner);
     }
 

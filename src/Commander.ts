@@ -15,6 +15,7 @@ import { analyseNextHub } from "intelligence/hub-expand";
 import { getRoomRange } from "utils/util-pos";
 import { Settings } from "settings";
 import { Exploration } from "Exploration";
+import { HubCenterArea } from "area/hub/hubcenter-area";
 
 
 export class Commander {
@@ -66,6 +67,20 @@ export class Commander {
     }
   }
 
+  private cleanHubs() {
+
+    // Init colonies memory if required
+    const hubsMemory = Mem.wrap(Memory, 'hubs', {}); // Init Hubs memory
+
+    const hubNames = _.keys(hubsMemory);
+
+    for (const name in hubNames) {
+      if (!Game.rooms[name]) {
+        delete hubNames[name];
+      }
+    }
+
+  }
 
   private registerHubs() {
 
@@ -101,10 +116,6 @@ export class Commander {
 
     // Initialize the Colonies and give each one a Supervisor
     let maxId = _.max(_.map(this.hubs, hub => hub.id)) ?? 1;
-
-    log.debug('maxId : ', maxId);
-    log.debug('hubOutposts : ', JSON.stringify(hubOutposts));
-    log.debug('this.hubs : ', JSON.stringify(_.keys(this.hubs)));
 
     const newHubs = _.filter(_.keys(hubOutposts), name => !this.hubs.hasOwnProperty(name));
 
@@ -199,11 +210,12 @@ export class Commander {
   }
 
   analyseNextHubToBuild() {
-    log.info("analyseNextHubToBuild");
 
     const minHubLevel = _.chain(this.hubs)//
       .filter(hub => hub.memory.claimRooms.length == 0)// room that does not have already claim goal
-      .map(hub => hub.level).min().value() ?? 0;
+      .map(hub => hub.level)//
+      .min()//
+      .value() ?? 0;
 
     if (minHubLevel > 5) {
       // Enable expansion only when all hubs are at least level 6
@@ -254,6 +266,7 @@ export class Commander {
   }
 
   build() {
+    this.cleanHubs();
     this.registerHubs();
     this.registerDirectives();
     this.registerAgents();

@@ -247,7 +247,6 @@ export class Hub {
     this.pos = (this.storage || this.spawns[0] || this.controller).pos;
 
     this.structuresByRooms = _.reduce(this.rooms, (acc, room) => {
-      //acc[room.name] = _.remove(room.find(FIND_STRUCTURES) as Structure[], structure => structure.id == this.controller.id);
       acc[room.name] = room.find(FIND_STRUCTURES) as Structure[];
       return acc;
     }, {} as Dictionary<Structure[]>);
