@@ -356,7 +356,7 @@ export class RouterDaemon extends Daemon {
 
     }
 
-    log.debug(`${router.print} No task to be defined`);
+    log.info(`${router.print} No task to be defined`);
 
     return [];
   }

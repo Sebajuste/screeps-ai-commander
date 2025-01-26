@@ -291,10 +291,14 @@ export class Hub {
 
   private buildAgentFactory() {
 
-    const claimFlag = _.find(Game.flags, flag => flag.name.includes('claim'));
+    const claimFlag = _.find(Game.flags, flag => flag.name.includes('claim') && flag.room?.name === this.room.name);
 
-    if (claimFlag || this.spawns[0]) {
+    log.debug(`${this.print} buildAgentFactory ${claimFlag?.name} - `, this.spawns[0]);
+
+    if (claimFlag || !this.spawns[0]) {
       // Use remote Factory
+
+      log.debug('> Use remote Factory')
 
       if (claimFlag) {
         const flagMemory: any = claimFlag.memory;
@@ -327,10 +331,12 @@ export class Hub {
 
     } else {
       // Normal Factory
-      this.areas.agentFactory = new AgentFactoryArea(this, this.spawns[0]);
 
-      log.error(`NO SPAWN`);
+      log.debug('> Use Normal Factory')
+
+      this.areas.agentFactory = new AgentFactoryArea(this, this.spawns[0]);
     }
+
   }
 
   private build(outposts: string[]) {
@@ -449,9 +455,13 @@ export class Hub {
     if (!this.areas.agentFactory) {
       // TODO : should be removed after bug correction. The agent remote factory agent is lost
       this.buildAgentFactory();
+      if (this.areas.agentFactory) {
+        const factory_area: AgentFactoryArea = this.areas.agentFactory;
+        factory_area.registerDaemons();
+      }
     }
 
-    log.debug(`${this.print} area agent factory `, this.areas.agentFactory);
+    log.debug(`${this.print} area agent factory `, this.areas.agentFactory?.isLocal());
 
     log.debug(`${this.print} refresh cost : ${Math.floor((Game.cpu.getUsed() - start) * 100) / 100}`)
 

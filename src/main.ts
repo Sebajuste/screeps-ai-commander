@@ -132,7 +132,7 @@ function registerCommands() {
 
     const hubMemory = (Memory as any).hubs;
     _.forEach(hubMemory, hub => {
-      log.debug('> Claim rooms erased ', JSON.stringify(hub));
+      log.info('> Claim rooms erased ', JSON.stringify(hub));
       if (hub.claimRooms) {
         hub.claimRooms.splice(0, hub.claimRooms.length);
         count += hub.claimRooms.length;

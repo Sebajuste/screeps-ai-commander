@@ -50,7 +50,7 @@ export class HaulerDaemon extends Daemon {
       return;
     }
 
-    const bodyParts = selectBodyParts(HAULER_TEMPLATE, this.hub.room.energyAvailable);
+    const bodyParts = selectBodyParts(HAULER_TEMPLATE, this.energyAvailable());
 
     if (!this._haulerRequire || this._haulerRequireTTL <= Game.time) {
       // Compute number of hauler required
@@ -67,9 +67,9 @@ export class HaulerDaemon extends Daemon {
         .sum()//
         .value();
 
-      log.debug('totalResourcesToTransport : ', totalResourcesToTransport);
+      log.info('totalResourcesToTransport : ', totalResourcesToTransport);
 
-      const energyAvailable = (this.hub.room.energyAvailable < this.hub.room.energyCapacityAvailable / 2) ? this.hub.room.energyAvailable : this.hub.room.energyCapacityAvailable;
+      const energyAvailable = (this.energyAvailable() < this.hub.room.energyCapacityAvailable / 2) ? this.energyAvailable() : this.hub.room.energyCapacityAvailable;
 
       const bestBodyParts = selectBodyParts(HAULER_TEMPLATE, energyAvailable);
       const carryPerAgent = countBodyPart(bestBodyParts, CARRY) * CARRY_CAPACITY;
@@ -89,7 +89,7 @@ export class HaulerDaemon extends Daemon {
       priority: AGENT_PRIORITIES.hauler
     };
 
-    log.debug(`${this.print} Hauler required : ${this._haulerRequire}`);
+    log.info(`${this.print} Hauler required : ${this._haulerRequire}`);
 
     this.wishList(this._haulerRequire, setup, options);
 

@@ -1,6 +1,6 @@
 import { AgentRequestOptions, AgentSetup } from "agent/Agent";
 import { countBodyPart, countValidBodyPart, selectBodyParts } from "agent/agent-builder";
-import { AGENT_PRIORITIES, HAULER_TEMPLATE, UPGRADER_BATTERY_TEMPLATE, UPGRADER_BOOST_TEMPLATE, UPGRADER_LOW_TEMPLATE, UPGRADER_TEMPLATE } from "agent/agent-setup";
+import { AGENT_PRIORITIES, HAULER_TEMPLATE, UPGRADER_BATTERY_TEMPLATE, UPGRADER_BOOST_TEMPLATE, UPGRADER_LOW_TEMPLATE, UPGRADER_REMOTE_TEMPLATE, UPGRADER_TEMPLATE } from "agent/agent-setup";
 import { UpgradeRole } from "agent/roles/roles";
 import { UpgradeArea } from "area/hub/upgrade-area";
 import { Daemon } from "daemons/daemon";
@@ -44,6 +44,12 @@ export class UpgradeDaemon extends Daemon {
 
   private selectTemplate() {
 
+    const spawner = this.hub.areas.agentFactory;
+
+    if (spawner && !spawner.isLocal()) {
+      return UPGRADER_REMOTE_TEMPLATE;
+    }
+
     if (this.upgradeArea.container) {
 
       return UPGRADER_BATTERY_TEMPLATE;
@@ -59,10 +65,11 @@ export class UpgradeDaemon extends Daemon {
     }
 
     return UPGRADER_TEMPLATE;
-
   }
 
   private spawnHandler() {
+
+    log.debug(`${this.print} spawnHandler`)
 
     const options: AgentRequestOptions = {
       priority: AGENT_PRIORITIES.upgrader
@@ -72,8 +79,7 @@ export class UpgradeDaemon extends Daemon {
 
     const template = this.selectTemplate();
 
-    // const bodyParts = isHubMaxLevel ? template.bodyParts[0] : selectBodyParts(template, this.hub.room.energyAvailable);
-    const bodyParts = selectBodyParts(template, this.hub.room.energyAvailable);
+    const bodyParts = selectBodyParts(template, this.energyAvailable());
 
     const setup: AgentSetup = {
       role: 'upgrader',

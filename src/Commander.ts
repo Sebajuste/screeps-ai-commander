@@ -220,6 +220,7 @@ export class Commander {
       .filter(hub => !hub.memory.claimRoom)// room that does not have already claim goal
       .filter(hub => hub.level > 7) // Only HUB lvl 8 can claim
       .filter(hub => hub.areas.hubCenter?.observer != undefined) // Must have an observer structure
+      .filter(hub => hub.storage != undefined && hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 50000) // Enough energy in store
       .value();
 
     const minLevel = _.chain(this.hubs).map(hub => hub.level).min().value();
@@ -240,7 +241,7 @@ export class Commander {
           .first()//
           .value();
 
-        log.debug(`analyseNextHubToBuild next ${nextRoom} from ${startHub?.name ?? 'ukn'}`);
+        log.info(`analyseNextHubToBuild next ${nextRoom} from ${startHub?.name ?? 'ukn'}`);
 
         /*
         if (!Game.rooms[nextRoom]) {

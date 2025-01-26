@@ -28,8 +28,18 @@ export class BuilderRole {
       pipeline.push(Tasks.build(constructionSite))
     }
 
-    const energyDrops = _.filter(hub.dropsByRooms[constructionSite.pos.roomName] ?? [], drop => drop.resourceType == RESOURCE_ENERGY);
-    const nearestDrop = constructionSite.pos.findClosestByRange(energyDrops);
+
+    // .orderBy(source => harvestSourceScore(agent, source), ['desc'])//
+    // dropScore(from: { pos: RoomPosition, store: StoreDefinition }, resource: Resource<ResourceConstant>) {
+
+    const nearestDrop = _.chain(hub.dropsByRooms[constructionSite.pos.roomName] ?? [])//
+      .filter(drop => drop.resourceType == RESOURCE_ENERGY)//
+      .orderBy(drop => dropScore(agent, drop), ['desc'])//
+      .first()//
+      .value();
+
+    // const energyDrops = _.filter(hub.dropsByRooms[constructionSite.pos.roomName] ?? [], drop => drop.resourceType == RESOURCE_ENERGY);
+    // const nearestDrop = constructionSite.pos.findClosestByRange(energyDrops);
 
 
     const storeStructures = _.chain(hub.containersByRooms[constructionSite.pos.roomName] as StoreStructure[] ?? [])//
@@ -185,7 +195,7 @@ export class HarvestRole {
       // Container full
       if (!link || link.store.getFreeCapacity(RESOURCE_ENERGY) == 0) {
         // No link, or link is full
-        log.debug(`${agent.print} Container full and no link or link full`)
+        log.info(`${agent.print} Container full and no link or link full`)
         return [];
       }
     }
@@ -313,7 +323,7 @@ export class HaulerRole {
         if (isStoreStructure(request.target)) {
           return [Tasks.transfer(request.target, request.resourceType)];
         } else if (isTargetPosition(request.target)) {
-          log.debug(`> Drop target : `, JSON.stringify(request.target));
+          // log.debug(`> Drop target : `, JSON.stringify(request.target));
           return [Tasks.drop(request.target.pos, request.resourceType)];
         }
 
@@ -335,7 +345,7 @@ export class HaulerRole {
         return [Tasks.transfer(hub.areas.upgrade.container, RESOURCE_ENERGY)];
       }
 
-      log.debug(`${agent.print} Cannot found logistic request`);
+      // log.debug(`${agent.print} Cannot found logistic request`);
 
       return [Tasks.wait(new RoomPosition(25, 25, agent.room.name), 20)];
     }
@@ -490,7 +500,7 @@ export class ScoutRole {
         pipeline.push(Tasks.sign(agent.creep.room.controller!, text));
       }
 
-      log.debug(`ScoutRole for ${agent.print}. Destination room reached`);
+      // log.debug(`ScoutRole for ${agent.print}. Destination room reached`);
 
       const newNextRoom = _.first(_.orderBy(nextRooms, room => scoutScore(agent, room), ['desc']));
 
@@ -511,11 +521,11 @@ export class ScoutRole {
         pipeline.push(Tasks.sign(agent.creep.room.controller!, text));
       }
 
-      log.debug(`ScoutRole for ${agent.print}. Invalid current room, agentMemory: ${nextRoom}`);
+      // log.debug(`ScoutRole for ${agent.print}. Invalid current room, agentMemory: ${nextRoom}`);
 
       const roomPath = Pathing.roomPath(agent.room.name, nextRoom);
 
-      if( !roomPath ) {
+      if (!roomPath) {
         // Remove room if no path is reachable
         delete agentMemory['nextRoom'];
         _.remove(nextRooms, it => it == nextRoom);
@@ -541,9 +551,9 @@ export class ScoutRole {
  */
 export class SupplierRole {
 
-  private static STRUCTURE_WEIGHT : {[key:string]: number}= {
+  private static STRUCTURE_WEIGHT: { [key: string]: number } = {
     STRUCTURE_TOWER: -1000,
-    STRUCTURE_EXTENSION : 100,
+    STRUCTURE_EXTENSION: 100,
     STRUCTURE_SPAWN: 1000
   };
 

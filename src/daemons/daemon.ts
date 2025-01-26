@@ -139,6 +139,14 @@ export abstract class Daemon implements Actor {
     );
   }
 
+  protected energyAvailable() {
+    const spawner = this.hub.areas.agentFactory;
+    if (spawner) {
+      return spawner.energyAvailable();
+    }
+    return this.hub.room.energyAvailable;
+  }
+
   protected wishList(quantity: number, setup: AgentSetup, opts = {} as AgentRequestOptions) {
 
     let creepQuantity;
@@ -151,7 +159,7 @@ export abstract class Daemon implements Actor {
 
     const spawnQuantity = quantity - creepQuantity;
 
-    // log.debug(`${this.print} wishList creepQuantity: ${creepQuantity}, spawnQuantity: ${spawnQuantity}`);
+    log.info(`${this.print} wishList [${setup.role}] creepQuantity: ${creepQuantity}, spawnQuantity: ${spawnQuantity}`);
 
     if (spawnQuantity > 0) {
 

@@ -14,8 +14,6 @@ export class BootstrapDaemon extends Daemon {
 
   private spawnHandler() {
 
-    log.debug('BootstrapDaemon::spawnHandler')
-
     const options: AgentRequestOptions = {
       priority: AGENT_PRIORITIES.bootstrap
     };

@@ -94,15 +94,22 @@ export class ObserverDaemon extends Daemon {
     log.debug(`${this.print} claim room: `, this.hub.memory.claimRoom);
 
     // Focus on claim room if necessary
-    if (this.hub.memory.claimRoom) {
+    const claimRoom = this.hub.memory.claimRoom;
+    if (claimRoom) {
 
-      this.observeRoom(this.hub.memory.claimRoom);
+      const haveCreep = _.find(Game.creeps, creep => creep.room.name == claimRoom) != undefined;
 
-      const result = this.hubCenterArea.observer.observeRoom(this.hub.memory.claimRoom);
-      if (result != OK) {
-        log.warning(`${this.print} Cannot observe Room : ${this.targetRoom}`);
+      if (!Game.rooms[claimRoom] || !haveCreep) {
+
+        this.observeRoom(claimRoom);
+
+        const result = this.hubCenterArea.observer.observeRoom(claimRoom);
+        if (result != OK) {
+          log.warning(`${this.print} Cannot observe Room : ${this.targetRoom}`);
+        }
+
+        return;
       }
-      return;
     }
 
 

@@ -1,7 +1,7 @@
 import { Actor } from "Actor";
 import { AgentRequestOptions, AgentSetup } from "agent/Agent";
 import { countBodyPart, countValidBodyPart, selectBodyParts } from "agent/agent-builder";
-import { AGENT_PRIORITIES, HARVEST_BASIC_STRUCTURE_TEMPLATE, HARVEST_STRUCTURE_TEMPLATE } from "agent/agent-setup";
+import { AGENT_PRIORITIES, HARVEST_BASIC_STRUCTURE_TEMPLATE, HARVEST_REMOTE_BASIC_STRUCTURE_TEMPLATE, HARVEST_STRUCTURE_TEMPLATE } from "agent/agent-setup";
 import { HarvestRole } from "agent/roles/roles";
 import { Daemon } from "daemons/daemon";
 import { EnergySourceDirective } from "directives/resources/energy-source-directive";
@@ -46,14 +46,27 @@ export class HarvestDaemon extends Daemon {
     return this.memory.eta ?? 1;
   }
 
+  private selectTemplate() {
+
+    const spawner = this.hub.areas.agentFactory;
+
+    const isRemote = this.pos.roomName != this.hub.pos.roomName;
+    const isOutpostContainer = this.initializer.container && isRemote;
+
+    if (this.initializer.link || isOutpostContainer) {
+      return HARVEST_STRUCTURE_TEMPLATE;
+    } else {
+      return spawner && !spawner.isLocal() ? HARVEST_REMOTE_BASIC_STRUCTURE_TEMPLATE : HARVEST_BASIC_STRUCTURE_TEMPLATE;
+    }
+  }
+
   private spawnHandler() {
 
     const options: AgentRequestOptions = {
       priority: AGENT_PRIORITIES.harvester
     };
 
-    const isOutpostContainer = this.initializer.container && this.pos.roomName != this.hub.pos.roomName;
-    const bodyParts = selectBodyParts(this.initializer.link || isOutpostContainer ? HARVEST_STRUCTURE_TEMPLATE : HARVEST_BASIC_STRUCTURE_TEMPLATE, this.hub.room.energyAvailable);
+    const bodyParts = selectBodyParts(this.selectTemplate(), this.energyAvailable());
 
     const setup: AgentSetup = {
       role: 'energy_collector',

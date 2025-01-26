@@ -94,6 +94,14 @@ export class AgentFactoryArea extends Area {
     return this.spawns.length != this.availableSpawns.length;
   }
 
+  isLocal() {
+    return true;
+  }
+
+  energyAvailable() {
+    return this.room.energyAvailable;
+  }
+
   generateProtoCreep(setup: AgentSetup, daemon: Daemon, memory?: any): ProtoCreep {
     // Generate the creep body
     // let creepBody: BodyPartConstant[];
@@ -176,6 +184,9 @@ export class AgentFactoryArea extends Area {
   }
 
   private spawnHighestPriorityAgent(): number | undefined {
+
+    log.debug(`${this.print} spawnHighestPriorityAgent `, JSON.stringify(this.productionQueue));
+
     const sortedKeys = _.sortBy(this.productionPriorities);
 
     for (const priority of sortedKeys) {
@@ -194,13 +205,17 @@ export class AgentFactoryArea extends Area {
         if (result == OK) {
           return result;
         } else if (result == ERR_SPECIFIED_SPAWN_BUSY) {
+          log.warning(`${this.print} Cannot spawn ERR_SPECIFIED_SPAWN_BUSY`)
           return result; // continue to spawn other things while waiting on specified spawn
-        } else {
+        } else if (result == ERR_INVALID_ARGS) {
+          log.error(`${this.print} Invalid argument to spawn creeps : `, JSON.stringify(nextOrder));
+        } else if (result != ERR_ROOM_ENERGY_CAPACITY_NOT_ENOUGH) {
           // If there's not enough energyCapacity to spawn, ignore it and move on, otherwise block and wait
-          if (result != ERR_ROOM_ENERGY_CAPACITY_NOT_ENOUGH) {
-            this.productionQueue[priority].unshift(nextOrder);
-            return result;
-          }
+          log.warning(`${this.print} Cannot spawn : Not enough energy`)
+          this.productionQueue[priority].unshift(nextOrder);
+          return result;
+        } else {
+          log.warning(`${this.print} Cannot spawn `, result)
         }
       }
     }
@@ -306,8 +321,6 @@ export class AgentFactoryArea extends Area {
   }
 
   init(): void {
-
-    log.debug(`${this.print} init`)
 
     if (!this.hub.storage || (this.hub.areas.hubCenter?.daemons.supply.agents.length ?? 0) == 0) {
       // Direct request only if no storage or supplyer are available. Otherwise supply is in charge on it

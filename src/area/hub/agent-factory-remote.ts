@@ -1,5 +1,4 @@
 
-import { set } from "lodash";
 import { AgentFactoryArea, ProtoCreep, SpawnRequest } from "./agent-factory";
 import { Hub } from "hub/Hub";
 import { Daemon } from "daemons";
@@ -21,6 +20,14 @@ export class AgentFactoryRemoteArea extends AgentFactoryArea {
 
   get spawning() {
     return this._source.spawning;
+  }
+
+  isLocal() {
+    return false;
+  }
+
+  energyAvailable() {
+    return this._source.hub.room.energyAvailable;
   }
 
   generateProtoCreep(setup: AgentSetup, daemon: Daemon, memory?: any): ProtoCreep {

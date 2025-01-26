@@ -28,7 +28,7 @@ export class BuildDirective extends Directive {
 
   init(): void {
 
-    log.debug(`${this.print} - build isDaemonSuspended ${this.hub.dispatcher.isDaemonSuspended(this.daemons.build)}`);
+    log.info(`${this.print} - build isDaemonSuspended ${this.hub.dispatcher.isDaemonSuspended(this.daemons.build)}`);
 
   }
 

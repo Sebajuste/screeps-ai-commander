@@ -44,6 +44,15 @@ export class BuildDaemon extends Daemon {
     this.constructionSiteCache.value = value;
   }
 
+  private selectBuilderQuantity() {
+    const spawner = this.hub.areas.agentFactory;
+    if (spawner && !spawner.isLocal()) {
+      return 6;
+    }
+
+    return this.hub.level < 3 ? 2 : 1
+  }
+
   private spawnBuilderHandler() {
 
     const constructionSites = this.hub.runLevel & RunActivity.Outpost ? this.hub.constructionSites : this.hub.constructionSitesByRooms[this.hub.name];
@@ -56,14 +65,14 @@ export class BuildDaemon extends Daemon {
       priority: AGENT_PRIORITIES.builder
     };
 
-    const bodyParts = selectBodyParts(BUIDER_TEMPLATE, this.hub.room.energyAvailable);
+    const bodyParts = selectBodyParts(BUIDER_TEMPLATE, this.energyAvailable());
 
     const setup: AgentSetup = {
       role: 'builder',
       bodyParts: bodyParts
     };
 
-    this.wishList(this.hub.level < 3 ? 2 : 1, setup, options);
+    this.wishList(this.selectBuilderQuantity(), setup, options);
 
   }
 
@@ -78,7 +87,7 @@ export class BuildDaemon extends Daemon {
       priority: AGENT_PRIORITIES.repairer
     };
 
-    const bodyParts = selectBodyParts(BUIDER_TEMPLATE, this.hub.room.energyAvailable);
+    const bodyParts = selectBodyParts(BUIDER_TEMPLATE, this.energyAvailable());
 
     const setup: AgentSetup = {
       role: 'repairer',
@@ -161,10 +170,10 @@ export class BuildDaemon extends Daemon {
       const energyRequired = Math.floor((this.constructionSite.progressTotal - this.constructionSite.progress));
       const amount = energyRequired - (drop?.amount ?? 0);
 
-      log.debug(`build site energyRequired: ${energyRequired}, amount: ${amount} `);
+      log.info(`build site energyRequired: ${energyRequired}, amount: ${amount} `);
 
       if (amount > 0) {
-        log.debug(`Build energy drop at `, this.constructionSite.pos);
+        log.info(`Build energy drop at `, this.constructionSite.pos);
         this.hub.logisticsNetwork.requestDrop(this.constructionSite.pos, RESOURCE_ENERGY, amount);
       }
 

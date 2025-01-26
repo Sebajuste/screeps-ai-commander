@@ -166,7 +166,7 @@ export class BunkerRoomPlanner extends RoomPlanner {
   }
 
   private createConstructionSite(pos: RoomPosition, structureType: BuildableStructureConstant): ScreepsReturnCode {
-    if( structureType == STRUCTURE_SPAWN) {
+    if (structureType == STRUCTURE_SPAWN) {
       const nameSeed = getSeedFromRoomName(pos.roomName);
       const name = generateRandomName(nameSeed);
       return pos.createConstructionSite(structureType, name);
@@ -230,7 +230,7 @@ export class BunkerRoomPlanner extends RoomPlanner {
     }
   }
 
-  private finalize(ignoreRoads = false) {
+  private finalize(ignoreRoads = true) {
     const collision = RoomPlanner.findCollision(ignoreRoads, this.map, this.hub.room.name);
     if (collision) {
       log.warning(`Invalid layout: collision detected at ${printPos(collision)}!`);
