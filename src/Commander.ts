@@ -150,7 +150,7 @@ export class Commander {
         flagMemory['hub'] = hubName;
         log.info(`Attach flag ${flag.name}@${roomName} to ${hubName}`);
       } else {
-        log.warning(`No Hub for flag ${flag.name}@${roomName}, colonies: ${JSON.stringify(_.keys(this.hubs))}`)
+        log.error(`No Hub for flag ${flag.name}@${roomName}, colonies: ${JSON.stringify(_.keys(this.hubs))}`)
       }
     }
   }
@@ -161,6 +161,11 @@ export class Commander {
 
 
   private registerDirectives(): void {
+
+    if (_.keys(this.hubs).length == 0) {
+      log.error('Cannot run registerDirectives. Cause : No HUB registered');
+      return;
+    }
 
     for (const name in Game.flags) {
       const flag = Game.flags[name];
@@ -211,57 +216,49 @@ export class Commander {
 
   analyseNextHubToBuild() {
 
-    const minHubLevel = _.chain(this.hubs)//
-      .filter(hub => hub.memory.claimRooms.length == 0)// room that does not have already claim goal
-      .map(hub => hub.level)//
-      .min()//
-      .value() ?? 0;
+    const claimerHubs = _.chain(this.hubs)//
+      .filter(hub => !hub.memory.claimRoom)// room that does not have already claim goal
+      .filter(hub => hub.level > 7) // Only HUB lvl 8 can claim
+      .filter(hub => hub.areas.hubCenter?.observer != undefined) // Must have an observer structure
+      .value();
 
-    if (minHubLevel > 5) {
-      // Enable expansion only when all hubs are at least level 6
+    const minLevel = _.chain(this.hubs).map(hub => hub.level).min().value();
+
+    if (minLevel > 5 && claimerHubs.length > 0) {
+      // Enable expansion only when all hubs are at least level 6, and at least one hub can claim
 
       const nextRoom = analyseNextHub(this.hubs, this.hubMap);
 
-      if (nextRoom) {
+      if (nextRoom && Game.rooms[nextRoom]) {
         // If 1 room is found to build a new HUB
 
+        const roomInfo = Exploration.exploration().getRoom(nextRoom);
+
         // 1. Select the nearest room to create a new HUB
-        const startHub = _.chain(this.hubs)//
-          .filter(hub => hub.level > 5)//
+        const startHub = _.chain(claimerHubs)//
           .orderBy(hub => getRoomRange(hub.pos.roomName, nextRoom), ['asc'])//
           .first()//
           .value();
 
-        if (startHub) {
-          // Select the nearest HUB to create colonizer
+        log.debug(`analyseNextHubToBuild next ${nextRoom} from ${startHub?.name ?? 'ukn'}`);
 
-          if (!startHub.memory.claimRooms.includes(nextRoom)) {
-            // 2. Add next room to claim list of the selected hub
-            startHub.memory.claimRooms.push(nextRoom);
-          }
+        /*
+        if (!Game.rooms[nextRoom]) {
+          // The room is not visible
+          startHub.areas.hubCenter?.observer?.observeRoom(nextRoom);
+          return;
+        }
+        */
 
-          if (Game.rooms[nextRoom]) {
-            // 3. If the room is visible, check if there are no ennemies in it
+        if (startHub && roomInfo && !roomInfo.haveEnnemy) {
+          // 2. Select the nearest HUB to create colonizer
 
-            const roomInfo = Exploration.exploration().getRoom(nextRoom);
-            if (roomInfo && !roomInfo.haveEnnemy) {
-
-              try {
-                const createResult = Directive.createFlagIfNotPresent(new RoomPosition(25, 25, nextRoom), 'claim', COLOR_ORANGE);
-                log.debug(`startHub: ${startHub.name} to ${nextRoom} > createResult: ${createResult}`)
-              } catch (e) {
-                log.error(e);
-              }
-
-            }
-
-          }
-
+          startHub.memory.claimRoom = nextRoom;
         }
       }
 
     } else {
-      log.info("> no HUB ready to fork");
+      log.info(`> no HUB ready to fork`);
     }
   }
 

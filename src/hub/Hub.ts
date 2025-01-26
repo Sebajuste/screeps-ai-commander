@@ -25,7 +25,7 @@ interface HubMemory {
   bootstrap: boolean;
   standBy: boolean;
   outposts: string[];
-  claimRooms: string[];
+  claimRoom?: string;
   stats: { [key: string]: number };
 }
 
@@ -33,7 +33,6 @@ const DEFAULT_HUB_MEMORY = {
   bootstrap: false,
   standBy: false,
   outposts: [],
-  claimRooms: [],
   stats: {}
 } as HubMemory;
 
@@ -290,26 +289,12 @@ export class Hub {
     this.hostilesStructuresByRooms = _.groupBy(this.hostilesStructures, structure => structure.room.name);
   }
 
-  private build(outposts: string[]) {
+  private buildAgentFactory() {
 
-    this.room = Game.rooms[this.name];
-    this.outposts = _.compact(_.map(outposts, outpost => Game.rooms[outpost]));
-    this.rooms = [this.room].concat(this.outposts);
-    this.registerRoomObject();
+    const claimFlag = _.find(Game.flags, flag => flag.name.includes('claim'));
 
-    if (this.spawns[0]) {
-      this.areas.agentFactory = new AgentFactoryArea(this, this.spawns[0]);
-
-      const claimFlag = Directive.getFlag(new RoomPosition(25, 25, this.room.name), 'claim');
-      if (claimFlag) {
-        // Remove the claim goal
-        const claimDirective = this.commander.directives[claimFlag.name];
-        claimDirective.remove();
-      }
-
-    } else {
-
-      const claimFlag = _.find(Game.flags, flag => flag.name.includes('claim'));
+    if (claimFlag || this.spawns[0]) {
+      // Use remote Factory
 
       if (claimFlag) {
         const flagMemory: any = claimFlag.memory;
@@ -320,13 +305,44 @@ export class Hub {
         if (mainHub && mainHub.areas.agentFactory) {
           this.areas.agentFactory = new AgentFactoryRemoteArea(this, mainHub.areas.agentFactory);
         } else {
-          log.warning('Cannot find HUB ', mainHubName)
+          log.error('Cannot find HUB ', mainHubName)
         }
+
+        if (this.spawns[0] && this.extentions.length > 4) {
+          // Remove claim directive if hub is autonomous
+
+          const claimFlag = Directive.getFlag(new RoomPosition(25, 25, this.room.name), 'claim');
+          if (claimFlag) {
+            // Remove the claim goal
+            const claimDirective = this.commander.directives[claimFlag.name];
+            if (claimDirective) {
+              claimDirective.remove();
+            }
+          }
+
+        }
+
 
       }
 
-      log.warning(`NO SPAWN`);
+    } else {
+      // Normal Factory
+      this.areas.agentFactory = new AgentFactoryArea(this, this.spawns[0]);
+
+      log.error(`NO SPAWN`);
     }
+  }
+
+  private build(outposts: string[]) {
+
+    this.room = Game.rooms[this.name];
+    this.outposts = _.compact(_.map(outposts, outpost => Game.rooms[outpost]));
+    this.rooms = [this.room].concat(this.outposts);
+    this.registerRoomObject();
+
+    log.debug(`${this.print} build - this.spawns[0] : `, JSON.stringify(this.spawns[0]));
+
+    this.buildAgentFactory();
 
     if (this.storage && this.spawns[0]) {
       this.areas.hubCenter = new HubCenterArea(this, this.storage);
@@ -336,9 +352,8 @@ export class Hub {
       this.areas.minerals = this.minerals.map(mineral => new MineralArea(this, mineral));
     }
 
-    if (this.spawns[0]) {
-      this.areas.upgrade = new UpgradeArea(this);
-    }
+
+    this.areas.upgrade = new UpgradeArea(this);
 
     this.areaList = _.flatten(_.values(this.areas) as (Area | Area[])[]);
     this.areaList.forEach(area => area.registerDaemons());
@@ -430,6 +445,13 @@ export class Hub {
     this.linkNetwork.refresh();
 
     this.dispatcher.refresh();
+
+    if (!this.areas.agentFactory) {
+      // TODO : should be removed after bug correction. The agent remote factory agent is lost
+      this.buildAgentFactory();
+    }
+
+    log.debug(`${this.print} area agent factory `, this.areas.agentFactory);
 
     log.debug(`${this.print} refresh cost : ${Math.floor((Game.cpu.getUsed() - start) * 100) / 100}`)
 

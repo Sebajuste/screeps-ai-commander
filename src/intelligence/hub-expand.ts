@@ -76,16 +76,24 @@ function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, se
   return true;
 }
 
-
+/**
+ * Search for the next HUB to expand into.
+ * 
+ * @param mineralTarget The target mineral to search for.
+ * @param hubMap The list of current HUBs.
+ * @param claimingRoomNames A list of rooms that are currently being claimed by another hub.
+ */
 function searchNextHub(mineralTarget: MineralConstant, hubMap: { [name: string]: string }, claimingRoomNames: string[]) {
   const exploration = Exploration.exploration();
+
+  log.debug(`searchNextHub for [${mineralTarget}]`);
 
   // Search the next room to create new HUB
   const nextRoom = _.chain(exploration.getRooms())//
     .keys()//
     .filter(roomName => !claimingRoomNames.includes(roomName) && isRoomEligible(roomName, hubMap, mineralTarget)) // Avoid already claimed rooms and ineligible ones
-    .first()//
     // .orderBy() // Nearest as builder hub
+    .first()//
     .value();
 
   log.debug(`> Next room for [${mineralTarget}] : ${nextRoom}`);
@@ -114,7 +122,7 @@ export function analyseNextHub(hubs: { [roomName: string]: Hub }, hubMap: { [nam
     .value();
 
 
-  const claimingRoomNames = _.chain(hubs).map(hub => hub.memory.claimRooms).flatten().uniq().value();
+  const claimingRoomNames = _.chain(hubs).map(hub => hub.memory.claimRoom).compact().uniq().value();
 
   // Search the next mineral required
   const mineralTargets = _.difference(MINERAL_PRIORITY, minerals);

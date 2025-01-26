@@ -154,7 +154,7 @@ export class EnergySourceDirective extends Directive {
       }
     }
 
-    log.debug(`${this.print} Link required :${linksSourceMax(this.hub.level)}, this.isOutpost: ${this.isOutpost}, this._linkCache.value: ${this._linkCache.value}`)
+    // log.debug(`${this.print} Link required :${linksSourceMax(this.hub.level)}, this.isOutpost: ${this.isOutpost}, this._linkCache.value: ${this._linkCache.value}`)
 
     if (this.linkPos && !this.isOutpost && !this._linkCache.value && !this._constructionSiteCache.value) {
       if (this.hub.links.length >= 1 && this.hub.links.length < linksSourceMax(this.hub.level)) {

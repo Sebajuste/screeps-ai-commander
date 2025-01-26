@@ -32,8 +32,8 @@ export class ClaimDaemon extends Daemon {
 
   init(): void {
 
-    if (Game.rooms[this.pos.roomName] && !Game.rooms[this.pos.roomName].controller?.my) {
-      // Avoid spawn if room is controlled
+    if (this.room && !this.room.controller?.my) {
+      // Avoid spawn if room is not controlled
       this.spawnHandler();
     }
 

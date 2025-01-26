@@ -48,28 +48,36 @@ export class UpgradeArea extends Area {
     if (!this.memory.containerPos && steps) {
       const stepIndex = Math.min(2, steps.length);
       const step = steps[stepIndex];
-      this.memory.containerPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
+      if (step) {
+        this.memory.containerPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
+      }
     }
 
     if (!this.memory.linkPos && steps) {
       const stepIndex = Math.min(3, steps.length);
       const step = steps[stepIndex];
-      this.memory.linkPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
+      if (step) {
+        this.memory.linkPos = serializePos(new RoomPosition(step.x, step.y, this.pos.roomName));
+      }
     }
 
-    this.dropPos = deserializePos(this.memory.containerPos!);
-    this.linkPos = deserializePos(this.memory.linkPos!);
+    if (this.memory.containerPos) {
+      this.dropPos = deserializePos(this.memory.containerPos);
+    }
+    if (this.memory.linkPos) {
+      this.linkPos = deserializePos(this.memory.linkPos);
+    }
   }
 
   get container(): StructureContainer | undefined {
-    if (!this._container) {
+    if (!this._container && this.dropPos) {
       this._container = findAtPos(this.dropPos, this.hub.containersByRooms[this.pos.roomName] ?? []);
     }
     return this._container!;
   }
 
   get link(): StructureLink | null | undefined {
-    if (!this._link) {
+    if (!this._link && this.linkPos) {
       this._link = findAtPos(this.linkPos, this.hub.links ?? []);
     }
     return this._link;
@@ -117,12 +125,12 @@ export class UpgradeArea extends Area {
 
   init(): void {
 
-    if (!this.link && !this.container && !this.constructionSite && this.hub.level < 5) {
+    if (!this.link && !this.container && !this.constructionSite && this.dropPos && this.hub.level < 5) {
       // Require container
       this.dropPos.createConstructionSite(STRUCTURE_CONTAINER);
     }
 
-    if (!this.link && !this.constructionSite && this.hub.level >= 5) {
+    if (!this.link && !this.constructionSite && this.linkPos && this.hub.level >= 5) {
       // Require link
       this.linkPos.createConstructionSite(STRUCTURE_LINK);
     }

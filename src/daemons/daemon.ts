@@ -151,7 +151,7 @@ export abstract class Daemon implements Actor {
 
     const spawnQuantity = quantity - creepQuantity;
 
-    log.debug(`${this.print} wishList creepQuantity: ${creepQuantity}, spawnQuantity: ${spawnQuantity}`);
+    // log.debug(`${this.print} wishList creepQuantity: ${creepQuantity}, spawnQuantity: ${spawnQuantity}`);
 
     if (spawnQuantity > 0) {
 

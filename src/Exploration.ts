@@ -1,6 +1,8 @@
+import { ObserverDaemon } from "daemons/expend/observer-daemon";
 import _, { Dictionary } from "lodash";
 import { Mem } from "memory/Memory";
 import { DistanceTransform } from "utils/distance-transform";
+import { log } from "utils/log";
 import { getRoomRange } from "utils/util-pos";
 
 
@@ -37,6 +39,10 @@ export class Exploration {
   };
 
   private _memory?: ExplorationMemory;
+
+  private _explorationList: string[] = [];
+
+  private _invalidRooms: string[] = [];
 
   private static instance?: Exploration;
 
@@ -179,6 +185,52 @@ export class Exploration {
       this.updateRoom(room.name, info);
     }
 
+  }
+
+  observerRoom(observer: StructureObserver, targetRoom: string): ScreepsReturnCode {
+
+    const room = Game.rooms[targetRoom];
+    if (room) {
+      // If 1 room is visible, analyse it and reset target room
+      this.analyseRoom(room);
+      // this.targetRoom = undefined;
+      return OK;
+    } else {
+      // If 1 room is not visible, check if observer can observe it
+
+      const result = observer.observeRoom(targetRoom);
+      if (result != OK) {
+        // log.error(`${this.print} Cannot observeRoom ${this.targetRoom}`);
+        // this.invalidRooms.push(this.targetRoom)
+        this._invalidRooms.push(targetRoom);
+        //this.targetRoom = undefined;
+      }
+      return result;
+    }
+
+  }
+
+
+  nextRoom() {
+
+    if (this._explorationList.length == 0) {
+
+      this._explorationList = _.chain(Object.keys(this.getRooms()))//
+        .filter(roomName => this.needUpdate(roomName) && !this._invalidRooms.includes(roomName))//
+        .orderBy(roomInfo => this.getRoom(roomInfo)?.tick, ['asc'])//
+        .value();
+
+    }
+
+    return this._explorationList.pop();
+
+    /*
+    const targetRoom = _.chain(Object.keys(exploration.getRooms()))//
+      .filter(roomName => exploration.needUpdate(roomName) && !this.invalidRooms.includes(roomName))//
+      .orderBy(roomInfo => exploration.getRoom(roomInfo)?.tick, ['desc'])//
+      .first()//
+      .value();
+    */
   }
 
 }

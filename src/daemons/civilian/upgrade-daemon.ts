@@ -164,7 +164,7 @@ export class UpgradeDaemon extends Daemon {
       }
     }
 
-    if (!this.container && !this.link && this.agents.length > 0) {
+    if (!this.container && !this.link && this.upgradeArea.dropPos && this.agents.length > 0) {
       // Request energy on ground
       this.hub.logisticsNetwork.requestDrop(this.upgradeArea.dropPos, RESOURCE_ENERGY);
     }

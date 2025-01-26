@@ -21,7 +21,7 @@ export class ClaimDirective extends Directive {
   }
 
   remove(): ScreepsReturnCode {
-    _.remove(this.hub.memory.claimRooms, roomName => roomName == this.roomName);
+    delete this.hub.memory.claimRoom;
     return super.remove();
   }
 

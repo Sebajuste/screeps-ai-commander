@@ -123,7 +123,7 @@ export class RouterDaemon extends Daemon {
 
       if (freeCapacity > 0 && resource == RESOURCE_ENERGY && link && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && amount > 0) {
         // Take energy from link
-        const quantity = Math.min(amount ?? 1000, Settings.hubCenterMinLinkEnergy - link.store.getUsedCapacity(RESOURCE_ENERGY));
+        const quantity = Math.min(amount ?? 1000, link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy);
         const take = Math.min(freeCapacity, quantity);
         pipeline.push(Tasks.withdraw(link, resource, take));
         amount = amount - take;
@@ -201,7 +201,7 @@ export class RouterDaemon extends Daemon {
     if (link) {
       if (router.store.getFreeCapacity(RESOURCE_ENERGY) > 0 && link.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubCenterMinLinkEnergy && (!storage || storage.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.hubStorageMaxEnergy)) {
         // Vacuum link only if Storage is not full
-        const amount = Math.min(link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy, Math.abs(router.store.getFreeCapacity(RESOURCE_ENERGY)));
+        const amount = Math.min(link.store.getUsedCapacity(RESOURCE_ENERGY) - Settings.hubCenterMinLinkEnergy, router.store.getFreeCapacity(RESOURCE_ENERGY));
         return [Tasks.withdraw(link, RESOURCE_ENERGY, amount), Tasks.transfer(storage, RESOURCE_ENERGY)];
       }
 

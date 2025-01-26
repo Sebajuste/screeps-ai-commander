@@ -33,6 +33,7 @@ import { deserializeTasks, serializeTasks } from "task/task-initializer";
 import { BuildDaemon, Daemon, HarvestDaemon, HaulerDaemon, ProbeDaemon, UpgradeDaemon } from "daemons";
 import { Scheduler } from "cpu/scheduler";
 import { CommandSystem, setupCommandSystem } from "utils/commands";
+import _ from "lodash";
 
 
 export const command = new CommandSystem();
@@ -123,6 +124,27 @@ function registerCommands() {
   command.registerCommand('exploration-get-room', (roomName: string) => {
     const room = Exploration.exploration().getRoom(roomName);
     log.info('Room : ', JSON.stringify(room));
+  });
+
+  command.registerCommand('claim-erase', () => {
+    let count = 0;
+    // Clean claim rooms for all hubs
+
+    const hubMemory = (Memory as any).hubs;
+    _.forEach(hubMemory, hub => {
+      log.debug('> Claim rooms erased ', JSON.stringify(hub));
+      if (hub.claimRooms) {
+        hub.claimRooms.splice(0, hub.claimRooms.length);
+        count += hub.claimRooms.length;
+      }
+    });
+
+    /*
+    _.forEach(commander?.hubs, hub => {
+      hub.memory.claimRooms.splice(0, hub.memory.claimRooms.length);
+    });
+    */
+    log.info('Claim rooms erased ', count);
   });
 
 }

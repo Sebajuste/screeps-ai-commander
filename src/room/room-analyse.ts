@@ -1,6 +1,7 @@
 import { Directive } from "directives/Directive";
 import { Hub } from "hub/Hub";
 import _ from "lodash";
+import { log } from "utils/log";
 import { getMultiRoomRange } from "utils/util-pos";
 
 export function setHarvestFlag(hub: Hub, source: Source) {
@@ -16,9 +17,11 @@ export function setHarvestFlag(hub: Hub, source: Source) {
 
 export function createHubFlags(hub: Hub, room: Room) {
 
+  log.debug('--- createHubFlags ---');
+
   Directive.createFlagIfNotPresent(new RoomPosition(46, 2, room.name), 'build', COLOR_BLUE);
 
-  if (!hub.observer && hub.spawns.length > 0) {
+  if (!hub.observer) {
     Directive.createFlagIfNotPresent(new RoomPosition(44, 1, room.name), 'scout', COLOR_GREEN);
   }
 
@@ -26,6 +29,14 @@ export function createHubFlags(hub: Hub, room: Room) {
     Directive.createFlagIfNotPresent(new RoomPosition(42, 2, room.name), 'bootstrap', COLOR_ORANGE);
   } else {
     Directive.removeFlagIfPresent(new RoomPosition(42, 2, room.name), 'bootstrap');
+  }
+
+  if (hub.memory.claimRoom) {
+    const result = Directive.createFlagIfNotPresent(new RoomPosition(25, 25, hub.memory.claimRoom), 'claim', COLOR_PURPLE);
+    if (result != ERR_INVALID_ARGS && result != ERR_INVALID_TARGET && result != ERR_NAME_EXISTS) {
+      const flagMemory = Game.flags[result].memory as any
+      flagMemory['hub'] = hub.ref;
+    }
   }
 
 }

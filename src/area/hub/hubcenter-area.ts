@@ -50,7 +50,7 @@ export class HubCenterArea extends Area {
       this.daemons.observer = new ObserverDaemon(this);
     }
 
-    if( this.nuker) {
+    if (this.nuker) {
       this.daemons.nuker = new NukerDaemon(this);
     }
 

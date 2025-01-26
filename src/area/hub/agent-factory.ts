@@ -56,8 +56,8 @@ export class AgentFactoryArea extends Area {
 
   private isOverloaded: boolean;
 
-  constructor(hub: Hub, instantiationObject: RoomObject) {
-    super(hub, instantiationObject, 'agent_factory_area');
+  constructor(hub: Hub, instantiationObject: RoomObject, name?: string) {
+    super(hub, instantiationObject, name ?? 'agent_factory_area');
 
     this.memory = Mem.wrap(this.hub.memory, 'agentFactory', {});
 
@@ -306,6 +306,9 @@ export class AgentFactoryArea extends Area {
   }
 
   init(): void {
+
+    log.debug(`${this.print} init`)
+
     if (!this.hub.storage || (this.hub.areas.hubCenter?.daemons.supply.agents.length ?? 0) == 0) {
       // Direct request only if no storage or supplyer are available. Otherwise supply is in charge on it
       this.handleEnergyRequests();

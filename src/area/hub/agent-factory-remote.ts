@@ -8,10 +8,10 @@ import { AgentSetup } from "agent/Agent";
 
 export class AgentFactoryRemoteArea extends AgentFactoryArea {
 
-  private _source : AgentFactoryArea;
+  private _source: AgentFactoryArea;
 
-  constructor(hub: Hub, source : AgentFactoryArea) {
-    super(hub, hub.controller);
+  constructor(hub: Hub, source: AgentFactoryArea) {
+    super(hub, hub.controller, 'agent_factory_remote_area');
     this._source = source;
   }
 
@@ -34,22 +34,5 @@ export class AgentFactoryRemoteArea extends AgentFactoryArea {
   enqueue(request: SpawnRequest): void {
     this._source.enqueue(request);
   }
-
-  spawnDaemons(): void {
-    
-  }
-
-  refresh() {
-    
-  }
-
-  init(): void {
-    
-  }
-
-  run(): void {
-    
-  }
-
 
 }

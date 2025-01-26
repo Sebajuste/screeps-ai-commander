@@ -29,13 +29,13 @@ export class ObserverDaemon extends Daemon {
 
   nextRooms: string[];
 
-  invalidRooms: string[];
+  // invalidRooms: string[];
 
   constructor(initializer: HubCenterArea) {
     super(initializer.hub, initializer, 'observer', RunActivity.Always);
     this.hubCenterArea = initializer;
     this.nextRooms = [];
-    this.invalidRooms = [];
+    // this.invalidRooms = [];
     Directive.removeFlagIfPresent(new RoomPosition(44, 1, initializer.room.name), 'scout');
   }
 
@@ -67,6 +67,14 @@ export class ObserverDaemon extends Daemon {
 
   }
 
+  observeRoom(roomName: string) {
+    if (this.targetRoom) {
+      // Store the current target to avoid lose it
+      this.nextRooms.push(this.targetRoom);
+    }
+    this.targetRoom = roomName;
+  }
+
   init(): void {
 
     this.initNextRooms();
@@ -79,12 +87,38 @@ export class ObserverDaemon extends Daemon {
    */
   run(): void {
 
+    if (!this.hubCenterArea.observer) {
+      return;
+    }
+
+    log.debug(`${this.print} claim room: `, this.hub.memory.claimRoom);
+
+    // Focus on claim room if necessary
+    if (this.hub.memory.claimRoom) {
+
+      this.observeRoom(this.hub.memory.claimRoom);
+
+      const result = this.hubCenterArea.observer.observeRoom(this.hub.memory.claimRoom);
+      if (result != OK) {
+        log.warning(`${this.print} Cannot observe Room : ${this.targetRoom}`);
+      }
+      return;
+    }
+
+
+
     const exploration = Exploration.exploration();
 
     if (this.targetRoom) {
       // If 1 room is already selected to be observed
 
       // 1. Observe target room
+      const result = exploration.observerRoom(this.hubCenterArea.observer, this.targetRoom);
+      if (result != OK) {
+        log.error(`${this.print} Cannot observeRoom ${this.targetRoom}`);
+      }
+      this.targetRoom = undefined;
+      /*
       const room = Game.rooms[this.targetRoom];
       if (room) {
         // If 1 room is visible, analyse it and reset target room
@@ -92,32 +126,34 @@ export class ObserverDaemon extends Daemon {
         this.targetRoom = undefined;
       } else {
         // If 1 room is not visible, check if observer can observe it
-        log.error(`Cannot access to ${this.targetRoom}`);
 
-        if (this.hubCenterArea.observer) {
-          const result = this.hubCenterArea.observer.observeRoom(this.targetRoom);
-          if (result != OK) {
-            log.error(`Cannot observeRoom ${this.targetRoom}`);
-            this.invalidRooms.push(this.targetRoom)
-            this.targetRoom = undefined;
-          }
+        const result = this.hubCenterArea.observer.observeRoom(this.targetRoom);
+        if (result != OK) {
+          log.error(`${this.print} Cannot observeRoom ${this.targetRoom}`);
+          // this.invalidRooms.push(this.targetRoom)
+          exploration.invalidRooms.push(this.targetRoom);
+          this.targetRoom = undefined;
         }
-
       }
+        */
     }
 
-    if (!this.targetRoom && this.hubCenterArea.observer) {
+    if (!this.targetRoom) {
       // If 1 room is not selected to be observed and observer exists
 
       // Select a new room to observe based on 3 conditions:
       // - Room must have been visited at least once
       // - Room must need an update (based on its last update time and the room TTL) and 1 room is not in invalidRooms list
       // - Room with the most recent tick should be selected
+
+      /*
       const targetRoom = _.chain(Object.keys(exploration.getRooms()))//
         .filter(roomName => exploration.needUpdate(roomName) && !this.invalidRooms.includes(roomName))//
         .orderBy(roomInfo => exploration.getRoom(roomInfo)?.tick, ['desc'])//
         .first()//
         .value();
+      */
+      const targetRoom = exploration.nextRoom();
 
       if (targetRoom) {
         // If 1 room is found to be observed
