@@ -185,8 +185,6 @@ export class AgentFactoryArea extends Area {
 
   private spawnHighestPriorityAgent(): number | undefined {
 
-    log.debug(`${this.print} spawnHighestPriorityAgent `, JSON.stringify(this.productionQueue));
-
     const sortedKeys = _.sortBy(this.productionPriorities);
 
     for (const priority of sortedKeys) {
@@ -222,8 +220,6 @@ export class AgentFactoryArea extends Area {
   }
 
   private handleEnergyRequests(): void {
-
-    console.log('AGENT FACTORY ENERGY REQUEST')
 
     const refillSpawns = _.filter(this.spawns, spawn => spawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
 

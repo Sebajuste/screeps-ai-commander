@@ -2,6 +2,7 @@ import { Exploration } from "Exploration";
 import _ from "lodash";
 import { Hub } from "../hub/Hub";
 import { log } from "utils/log";
+import { getRoomRange } from "utils/util-pos";
 
 const MINERAL_PRIORITY: MineralConstant[] = [
   RESOURCE_LEMERGIUM,
@@ -91,7 +92,9 @@ function searchNextHub(mineralTarget: MineralConstant, hubMap: { [name: string]:
   // Search the next room to create new HUB
   const nextRoom = _.chain(exploration.getRooms())//
     .keys()//
-    .filter(roomName => !claimingRoomNames.includes(roomName) && isRoomEligible(roomName, hubMap, mineralTarget)) // Avoid already claimed rooms and ineligible ones
+    .filter(roomName => !claimingRoomNames.includes(roomName))//
+    .filter(roomName => _.chain(hubMap).map(hubName => getRoomRange(hubName, roomName)).min().value() < 10)//
+    .filter(roomName => isRoomEligible(roomName, hubMap, mineralTarget)) // Avoid already claimed rooms and ineligible ones
     // .orderBy() // Nearest as builder hub
     .first()//
     .value();
@@ -122,7 +125,11 @@ export function analyseNextHub(hubs: { [roomName: string]: Hub }, hubMap: { [nam
     .value();
 
 
-  const claimingRoomNames = _.chain(hubs).map(hub => hub.memory.claimRoom).compact().uniq().value();
+  const claimingRoomNames = _.chain(hubs)//
+    .map(hub => hub.memory.claimRoom)//
+    .compact()//
+    .uniq()//
+    .value();
 
   // Search the next mineral required
   const mineralTargets = _.difference(MINERAL_PRIORITY, minerals);

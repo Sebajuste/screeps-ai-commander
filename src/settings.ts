@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS = {
   cpuLimitBucket: 2000,
   cpuUnlimitBucket: 5000,
 
+  hubMinTickCPU: 10,
   hubMinimalBucket: 1500,
 
   hubMaxHauler: 6,

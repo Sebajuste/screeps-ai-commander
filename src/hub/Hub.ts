@@ -289,9 +289,27 @@ export class Hub {
     this.hostilesStructuresByRooms = _.groupBy(this.hostilesStructures, structure => structure.room.name);
   }
 
+  private cleanClaimerSource() {
+
+    if (this.spawns[0] && this.extentions.length > 4) {
+      // Remove claim directive if hub is autonomous
+
+      const claimFlag = Directive.getFlag(new RoomPosition(25, 25, this.room.name), 'claim');
+      if (claimFlag) {
+        // Remove the claim goal
+        const claimDirective = this.commander.directives[claimFlag.name];
+        if (claimDirective) {
+          claimDirective.remove();
+        }
+      }
+
+    }
+
+  }
+
   private buildAgentFactory() {
 
-    const claimFlag = _.find(Game.flags, flag => flag.name.includes('claim') && flag.room?.name === this.room.name);
+    const claimFlag = Directive.getFlag(new RoomPosition(25, 25, this.room.name), 'claim');
 
     log.debug(`${this.print} buildAgentFactory ${claimFlag?.name} - `, this.spawns[0]);
 
@@ -311,21 +329,6 @@ export class Hub {
         } else {
           log.error('Cannot find HUB ', mainHubName)
         }
-
-        if (this.spawns[0] && this.extentions.length > 4) {
-          // Remove claim directive if hub is autonomous
-
-          const claimFlag = Directive.getFlag(new RoomPosition(25, 25, this.room.name), 'claim');
-          if (claimFlag) {
-            // Remove the claim goal
-            const claimDirective = this.commander.directives[claimFlag.name];
-            if (claimDirective) {
-              claimDirective.remove();
-            }
-          }
-
-        }
-
 
       }
 
@@ -349,6 +352,8 @@ export class Hub {
     log.debug(`${this.print} build - this.spawns[0] : `, JSON.stringify(this.spawns[0]));
 
     this.buildAgentFactory();
+
+    this.cleanClaimerSource();
 
     if (this.storage && this.spawns[0]) {
       this.areas.hubCenter = new HubCenterArea(this, this.storage);
@@ -436,8 +441,6 @@ export class Hub {
 
   refresh() {
 
-    const start = Game.cpu.getUsed();
-
     // Clear cache
     this._agentsByRole = undefined;
     this._agentsByDaemon = undefined;
@@ -461,9 +464,7 @@ export class Hub {
       }
     }
 
-    log.debug(`${this.print} area agent factory `, this.areas.agentFactory?.isLocal());
-
-    log.debug(`${this.print} refresh cost : ${Math.floor((Game.cpu.getUsed() - start) * 100) / 100}`)
+    this.cleanClaimerSource();
 
   }
 

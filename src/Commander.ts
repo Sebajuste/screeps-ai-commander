@@ -174,7 +174,7 @@ export class Commander {
         this.registerDirective(flag, room);
       } else {
         if (!room) {
-          log.warning(`No room for flag ${flag.name}`);
+          // log.warning(`No room for flag ${flag.name}`);
         }
       }
     }
@@ -216,6 +216,12 @@ export class Commander {
 
   analyseNextHubToBuild() {
 
+    const cpuPerHub = Game.cpu.limit / _.keys(this.hubs).length;
+    if (cpuPerHub < Settings.hubMinTickCPU) {
+      // Not enough CPU to create more HUB
+      return;
+    }
+
     const claimerHubs = _.chain(this.hubs)//
       .filter(hub => !hub.memory.claimRoom)// room that does not have already claim goal
       .filter(hub => hub.level > 7) // Only HUB lvl 8 can claim
@@ -225,15 +231,19 @@ export class Commander {
 
     const minLevel = _.chain(this.hubs).map(hub => hub.level).min().value();
 
-    if (minLevel > 5 && claimerHubs.length > 0) {
+    const isClaiming = _.find(this.hubs, hub => hub.memory.claimRoom != undefined) != undefined;
+
+    if (minLevel > 2 && claimerHubs.length > 0 && !isClaiming) {
       // Enable expansion only when all hubs are at least level 6, and at least one hub can claim
 
       const nextRoom = analyseNextHub(this.hubs, this.hubMap);
 
-      if (nextRoom && Game.rooms[nextRoom]) {
+      if (nextRoom) {
         // If 1 room is found to build a new HUB
 
         const roomInfo = Exploration.exploration().getRoom(nextRoom);
+
+        // TODO : if not roomInfo, push nextRoom into Observer list
 
         // 1. Select the nearest room to create a new HUB
         const startHub = _.chain(claimerHubs)//
@@ -241,7 +251,7 @@ export class Commander {
           .first()//
           .value();
 
-        log.info(`analyseNextHubToBuild next ${nextRoom} from ${startHub?.name ?? 'ukn'}`);
+        log.debug(`analyseNextHubToBuild next ${nextRoom} from ${startHub?.name ?? 'ukn'}`);
 
         /*
         if (!Game.rooms[nextRoom]) {
@@ -255,11 +265,19 @@ export class Commander {
           // 2. Select the nearest HUB to create colonizer
 
           startHub.memory.claimRoom = nextRoom;
+          log.info(`Next room is ${nextRoom} from ${startHub.name} `);
         }
       }
 
     } else {
-      log.info(`> no HUB ready to fork`);
+      if (minLevel <= 2) {
+        log.info(`> A HUB is already in creation step`);
+      } else if (isClaiming) {
+        log.info(`> A HUB is already claiming`);
+      } else {
+        log.info(`> no HUB ready to fork`);
+      }
+
     }
   }
 

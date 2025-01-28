@@ -45,7 +45,7 @@ export function dropScore(from: { pos: RoomPosition, store: StoreDefinition }, r
   const load_factor = resource.amount;
   const mid_full = load_factor > from.store.getFreeCapacity(RESOURCE_ENERGY);
   const bonus = mid_full ? 10.0 : 1.0;
-  return bonus * load_factor * load_factor * range * range;
+  return range * range * range * load_factor * bonus;
 }
 
 export function harvestSourceScore(from: { pos: RoomPosition, store: StoreDefinition }, source: Source) {
