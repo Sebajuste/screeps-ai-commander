@@ -8,13 +8,21 @@ export class ClaimerRole {
 
     const room = Game.rooms[roomName]
     if (room && room.controller) {
-      return [Tasks.claim(room.controller)];
+
+      return [
+        Tasks.attackController(room.controller),
+        Tasks.claim(room.controller)
+      ];
     }
 
     const roomInfo = Exploration.exploration().getRoom(roomName)!;
 
     if (roomInfo && roomInfo.controllerPos) {
-      return [Tasks.claim({ pos: roomInfo.controllerPos })];
+
+      return [
+        Tasks.attackController({ pos: roomInfo.controllerPos }),
+        Tasks.claim({ pos: roomInfo.controllerPos })
+      ];
     }
 
     return [Tasks.wait(new RoomPosition(25, 25, roomName), 10)];

@@ -5,6 +5,7 @@ import { AGENT_PRIORITIES, CLAIMER_TEMPLATE } from "agent/agent-setup";
 import { ClaimerRole } from "agent/roles/claimer";
 import { Daemon } from "daemons";
 import { Hub, RunActivity } from "hub/Hub";
+import { log } from "utils/log";
 
 export class ClaimDaemon extends Daemon {
 

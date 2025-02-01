@@ -12,6 +12,11 @@ export class BootstrapRole {
 
     const pipeline: TaskPipeline = [];
 
+    if (agent.room.name != hub.name) {
+      // A bootstrap agent must only work on the main hub room
+      return [Tasks.wait(new RoomPosition(25, 25, hub.name), 5)];
+    }
+
     if (agent.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
       // Fill
 
@@ -19,6 +24,10 @@ export class BootstrapRole {
 
       if (destination) {
         pipeline.push(Tasks.transfer(destination, RESOURCE_ENERGY))
+      } else if (hub.constructionSitesByRooms[hub.name].length > 0) {
+        pipeline.push(Tasks.build(hub.constructionSitesByRooms[hub.name][0]))
+      } else {
+        pipeline.push(Tasks.upgrade(hub.controller));
       }
 
       return pipeline;

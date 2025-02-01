@@ -6,7 +6,9 @@ import _ from "lodash";
 export class CombatTargeting {
 
   static findBestCreepTargetForTowers(hub: Hub, targets = hub.hostilesCreeps): Creep | undefined {
+
     return _.maxBy(targets, (hostile: any) => {
+      if (CombatIntelligence.getHealPotential(hostile) > 0) return 1000;
       if (hostile.hitsPredicted == undefined) hostile.hitsPredicted = hostile.hits;
       if (lookForStructure(hostile.pos, STRUCTURE_RAMPART)) return false;
       return hostile.hitsMax - hostile.hitsPredicted + CombatIntelligence.getHealPotential(hostile) + (CombatIntelligence.towerDamageAtPos(hub.towers, hostile.pos) || 0);

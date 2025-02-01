@@ -17,6 +17,7 @@ import { AttackTask, TASK_ATTACK_NAME } from "./tasks/AttackTask";
 import { ReserveTask, TASK_RESERVE_NAME } from "./tasks/ReserveTask";
 import { DismantleTask, TASK_DISMANTLE_NAME } from "./tasks/DismantleTask";
 import { ClaimTask, TASK_CLAIM_NAME } from "./tasks/ClaimTask";
+import { AttackControllerTask, TASK_ATTACK_CONTROLLER_NAME } from "./tasks/AttackControllerTask";
 
 export function serializePos(pos: RoomPosition): string {
   return `${pos.x};${pos.y};${pos.roomName}`;
@@ -33,6 +34,7 @@ type TaskFactory = (target: TaskTarget, options: TaskOptions) => Task;
 
 export const TASK_BUILDER: Dictionary<TaskFactory> = {
   [TASK_ATTACK_NAME]: (target: any, options: TaskOptions) => new AttackTask(target),
+  [TASK_ATTACK_CONTROLLER_NAME]: (target: any, options: TaskOptions) => new AttackControllerTask(target),
   [TASK_BUILD_NAME]: (target: any, options: TaskOptions) => new BuildTask(target),
   [TASK_CLAIM_NAME]: (target: any, options: TaskOptions) => new ClaimTask(target),
   [TASK_DISMANTLE_NAME]: (target: any, options: any) => new DismantleTask(target),

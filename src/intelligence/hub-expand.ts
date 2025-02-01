@@ -6,6 +6,7 @@ import { getRoomRange } from "utils/util-pos";
 
 const MINERAL_PRIORITY: MineralConstant[] = [
   RESOURCE_LEMERGIUM,
+  RESOURCE_HYDROGEN,
   RESOURCE_OXYGEN,
   RESOURCE_KEANIUM,
   RESOURCE_ZYNTHIUM,
@@ -54,7 +55,7 @@ function isRoomEligible(roomName: string, hubMap: { [name: string]: string }, se
     return false;
   }
 
-  if (Game.time - roomInfo.tick > 1500000) {
+  if (Game.time - roomInfo.tick > 15000) {
     // Last exploration is too old, re-explore it
     log.debug(`> ${roomName} Need to refresh information`);
     return false;

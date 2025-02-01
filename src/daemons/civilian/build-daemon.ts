@@ -62,8 +62,28 @@ export class BuildDaemon extends Daemon {
     }
 
     const options: AgentRequestOptions = {
-      priority: AGENT_PRIORITIES.builder
+      priority: AGENT_PRIORITIES.builder,
     };
+
+    if (!this.hub.areas.agentFactory?.isLocal) {
+
+      const spawnOptions = {
+        memory: {
+          taskInfos: [{
+            name: 'wait',
+            target: { pos: `25,25,${this.roomName}` },
+            options: {
+              oneShoot: true,
+              targetRange: 3,
+              reusePath: 50
+            }
+          }]
+        }
+      };
+
+      options.options = spawnOptions;
+
+    }
 
     const bodyParts = selectBodyParts(BUIDER_TEMPLATE, this.energyAvailable());
 

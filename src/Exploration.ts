@@ -34,7 +34,7 @@ const EXPLORATION_DEFAULT_MEMORY = { lastUpdate: Game.time, data: {}, invalidRoo
 
 export class Exploration {
 
-  static settings = {
+  static Settings = {
     roomTTL: 1000
   };
 
@@ -69,11 +69,17 @@ export class Exploration {
     return this._memory as ExplorationMemory;
   }
 
+  private get rooms() {
+    return this.memory.data;
+  }
+
+  /*
   addInvalidRoom(room: string) {
     if (!this.memory.invalidRooms.includes(room)) {
       this.memory.invalidRooms.push(room);
     }
   }
+    */
 
   isInvalid(room: string) {
     return this.memory.invalidRooms.includes(room);
@@ -92,9 +98,16 @@ export class Exploration {
   }
 
   getRoom(roomName: string): ExploredRoom | undefined {
-    return this.memory.data[roomName];
+    return this.rooms[roomName];
   }
 
+  /**
+   * Returns a list of room names that are within the specified distance from the given room name.
+   *
+   * @param {string} roomName - The name of the room to find nearby rooms for.
+   * @param {number} distance - The maximum distance to search for nearby rooms.
+   * @returns {string[]} An array of room names that are within the specified distance from the given room name.
+   */
   getNearRooms(roomName: string, distance: number): string[] {
 
     if (this.memory.data[roomName] == undefined) {
@@ -130,12 +143,19 @@ export class Exploration {
    * @returns {boolean} True if the room needs an update, false otherwise.
    */
   needUpdate(roomName: string): boolean {
-    if (!this.hasRoom(roomName)) {
+    const room = this.getRoom(roomName);
+    if (!room) {
       return true;
     }
-    return this.memory.data[roomName].tick + Exploration.settings.roomTTL < Game.time;
+
+    // return this.memory.data[roomName].tick + Exploration.settings.roomTTL < Game.time;
+    return Game.time - room.tick > Exploration.Settings.roomTTL;
   }
 
+  /**
+   * Analyse the room and extract relevant data.
+   * @param {Room} room - The room to be analysed.
+   */
   analyseRoom(room: Room) {
 
     const haveEnnemy = (
@@ -169,6 +189,7 @@ export class Exploration {
         controllerPos: controllerPos,
         maxWallDistance: maxWallDistance
       } as ExploredRoom;
+
       this.updateRoom(room.name, info);
 
     } else {
@@ -182,55 +203,70 @@ export class Exploration {
         controlledBy: username,
         maxWallDistance: maxWallDistance
       };
+
       this.updateRoom(room.name, info);
     }
 
   }
 
-  observerRoom(observer: StructureObserver, targetRoom: string): ScreepsReturnCode {
+  /**
+   * Analyse a room observed by an observer structure.
+   *
+   * @param {StructureObserver} observer - The observer structure that observed the target room.
+   * @param {string} targetRoom - The name of the target room to be analysed.
+   * @returns {ScreepsReturnCode} The result code of the analysis operation. 
+   */
+  analyseObserverRoom(observer: StructureObserver, targetRoom: string): ScreepsReturnCode {
 
     const room = Game.rooms[targetRoom];
     if (room) {
       // If 1 room is visible, analyse it and reset target room
       this.analyseRoom(room);
-      // this.targetRoom = undefined;
       return OK;
     } else {
       // If 1 room is not visible, check if observer can observe it
-
       const result = observer.observeRoom(targetRoom);
       if (result != OK) {
-        // log.error(`${this.print} Cannot observeRoom ${this.targetRoom}`);
-        // this.invalidRooms.push(this.targetRoom)
         this._invalidRooms.push(targetRoom);
-        //this.targetRoom = undefined;
+        return result;
       }
-      return result;
+      return ERR_BUSY;
     }
 
   }
 
 
-  nextRoom() {
+  /**
+   * Get the next room to explore based on a given starting room.
+   *
+   * @param {string} startingRoomName - The name of the starting room.
+   * @returns {string | undefined} The name of the next room to explore, or `undefined` if there are no more rooms to explore.
+   */
+  nextRoom(startingRoomName?: string): string | undefined {
 
+    // If the exploration list is empty, generate a new one
     if (this._explorationList.length == 0) {
 
-      this._explorationList = _.chain(Object.keys(this.getRooms()))//
-        .filter(roomName => this.needUpdate(roomName) && !this._invalidRooms.includes(roomName))//
-        .orderBy(roomInfo => this.getRoom(roomInfo)?.tick, ['asc'])//
+      // Get all room names that need an update and are not invalid
+      this._explorationList = _.chain(Object.keys(this.rooms))//
+        .map(roomName => [roomName, ...this.rooms[roomName].exits]).flatten().uniq() // Add all adjascent rooms
+        // .filter(roomName => this.needUpdate(roomName) && !this._invalidRooms.includes(roomName))//
+        .filter(roomName => this.needUpdate(roomName))//
+        .orderBy(roomInfo => this.getRoom(roomInfo)?.tick, ['asc'])// Order the rooms by their last update time
         .value();
-
     }
 
+
+    if (startingRoomName) {
+      // If a starting room is provided, find the next room within 5 range of it
+      const nextRoom = _.find(this._explorationList, itRoomName => getRoomRange(itRoomName, startingRoomName) <= 5);
+      _.remove(this._explorationList, itRoomName => itRoomName == nextRoom); // Remove the found room from the exploration list
+      return nextRoom;
+    }
+
+    // If no starting room is provided, return the last room in the exploration list
     return this._explorationList.pop();
 
-    /*
-    const targetRoom = _.chain(Object.keys(exploration.getRooms()))//
-      .filter(roomName => exploration.needUpdate(roomName) && !this.invalidRooms.includes(roomName))//
-      .orderBy(roomInfo => exploration.getRoom(roomInfo)?.tick, ['desc'])//
-      .first()//
-      .value();
-    */
   }
 
 }

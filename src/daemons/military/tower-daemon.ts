@@ -28,7 +28,7 @@ export class TowerDaemon extends Daemon {
 
   private handleEnergyRequests() {
     for (const tower of this.hub.towers) {
-      if (tower.store.getFreeCapacity(RESOURCE_ENERGY) > tower.store.getCapacity(RESOURCE_ENERGY) * 0.1 ) {
+      if (tower.store.getFreeCapacity(RESOURCE_ENERGY) > tower.store.getCapacity(RESOURCE_ENERGY) * 0.1) {
         // Not enought energy
         this.hub.logisticsNetwork.requestInput(tower, RESOURCE_ENERGY);
       }
@@ -41,13 +41,6 @@ export class TowerDaemon extends Daemon {
 
       pushProcess(this.hub.processStack, () => tower.attack(target), PROCESS_PRIORITY_HIGHT);
 
-      /*
-      const result = tower.attack(target);
-      if (result == OK) {
-        if (target.hitsPredicted == undefined) target.hitsPredicted = target.hits;
-        target.hitsPredicted -= CombatIntel.singleTowerDamage(target.pos.getRangeTo(tower));
-      }
-      */
     }
 
   }
@@ -69,7 +62,6 @@ export class TowerDaemon extends Daemon {
 
   private heal(ally: Creep) {
     for (const tower of this.hub.towers) {
-      // tower.heal(ally);
       if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > TowerDaemon.Settings.minimumEnergyHeal) {
         pushProcess(this.hub.processStack, () => tower.heal(ally), PROCESS_PRIORITY_NORMAL);
       }
@@ -111,10 +103,6 @@ export class TowerDaemon extends Daemon {
     // repair
     if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > TowerDaemon.Settings.minimumEnergyRepair) {
 
-      // const damagedStructures = _.filter(this.hub.structuresByRooms[this.pos.roomName] ?? [], structure => structure.hits < structure.hitsMax && structure.hits < TowerDaemon.Settings.maximumRepairHit);
-
-      // const nearest = _.last(_.sortBy(damagedStructures, structure => structure.pos.getRangeTo(tower.pos)));
-
       if (structureDamaged) {
         pushProcess(this.hub.processStack, () => tower.repair(structureDamaged), PROCESS_PRIORITY_LOW);
       }
@@ -124,12 +112,6 @@ export class TowerDaemon extends Daemon {
 
   refresh(): void {
     super.refresh();
-
-    /*
-    if (this.agentInjured) {
-      this.agentInjured = _.find(this.hub.agents, agent => agent.id == this.agentInjured?.id);
-    }
-    */
 
     if (this.structureDamaged) {
       this.structureDamaged = _.find(this.hub.structuresByRooms[this.pos.roomName], structure => structure.id == this.structureDamaged?.id);
@@ -147,22 +129,6 @@ export class TowerDaemon extends Daemon {
       return;
     }
 
-    /*
-    const hostiles = this.hub.hostilesCreepsByRooms[this.pos.roomName] ?? [];
-
-    // Defense
-    if (hostiles.length > 0) {
-      // this.closestHostile = this.pos.findClosestByRange(hostiles);
-      this.closestHostile = _.first(_.orderBy(hostiles, hostile => hostileScore(this.pos, hostile), ['desc']));
-    } else {
-      this.closestHostile = undefined;
-    }
-
-
-    const damagedStructures = _.filter(this.hub.structuresByRooms[this.pos.roomName] ?? [], structure => structure.hits < structure.hitsMax && structure.hits < TowerDaemon.Settings.maximumRepairHit && !this.hub.roomPlanner.isDismantle(structure));
-    this.structureDamaged = damagedStructures[0];
-    */
-
     if (!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) == 0) {
       // Request energy if no supplier are present/planned or storage is empty
       this.handleEnergyRequests();
@@ -173,6 +139,7 @@ export class TowerDaemon extends Daemon {
   run(): void {
 
     const hostiles = this.hub.hostilesCreepsByRooms[this.pos.roomName] ?? [];
+
     if (hostiles.length > 0) {
 
       const avgHealing = CombatIntelligence.avgHostileHealingTo(hostiles);
@@ -183,27 +150,9 @@ export class TowerDaemon extends Daemon {
           const damageMultiplier = CombatIntelligence.minimumDamageTakenMultiplier(hostile);
           return damageTaken * damageMultiplier > avgHealing;
         })//
-        /*
-        .filter(hostile => {
-          if (CombatIntel.isEdgeDancing(hostile)) {
-            const netDPS = CombatIntel.towerDamageAtPos(hostile.pos)! + myCreepDamage - (HEAL_FUDGE_FACTOR * CombatIntel.maxHostileHealingTo(hostile));
-            const isKillable = netDPS * hostile.pos.rangeToEdge > hostile.hits;
-            if (isKillable) {
-              return true;
-            } else {
-              // Shoot if they get close enough
-              if (hostile.pos.getRangeTo(this.hub.pos) <= 6 + 2) {
-                return true;
-              }
-            }
-          } else {
-            return true;
-          }
-        })//
-        */
         .value();
 
-      const target = CombatTargeting.findBestCreepTargetForTowers(this.hub, possibleTargets);
+      const target = CombatTargeting.findBestCreepTargetForTowers(this.hub, hostiles);
 
       if (target) {
         return this.attack(target);

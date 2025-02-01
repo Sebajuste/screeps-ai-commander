@@ -9,7 +9,7 @@ const MAX_RUN = 2;
 
 export type TaskPipeline = Task[];
 
-// export type TaskPipelineFactory = () => TaskPipeline;
+
 
 /**
  * Next task should be run in the current tick
@@ -20,6 +20,16 @@ export const ERR_PIPELINE_INVALID_TASK = -99;
 export const ERR_PIPELINE_INVALID_CONFIG = -98;
 export const ERR_PIPELINE_MAX_RUN = -98;
 
+
+/**
+ * The TaskPipeline class manages a queue of tasks to be executed.
+ * Each task is an instance of the Task class, and the pipeline can
+ * handle up to MAX_RUN tasks per tick. If the pipeline is empty,
+ * it returns ERR_PIPELINE_EMPTY. If a task is invalid or the config
+ * is invalid, it returns ERR_PIPELINE_INVALID_TASK or 
+ * ERR_PIPELINE_INVALID_CONFIG respectively. If the maximum number of runs
+ * has been reached, it returns ERR_PIPELINE_MAX_RUN.
+ */
 export class TaskPipelineHandler {
 
   creep: Creep;
@@ -69,6 +79,14 @@ export class TaskPipelineHandler {
     this.pipeline = [];
   }
 
+  /**
+   * Runs the next task in the pipeline, if there is one.
+   *
+   * If the pipeline is empty or has invalid tasks/configs,
+   * returns an appropriate error code.
+   *
+   * Otherwise, runs the next task and increments the run count.
+   */
   run(): number {
 
     if (Game.time != this.lastTick) {
@@ -80,13 +98,6 @@ export class TaskPipelineHandler {
       log.warning(`${printCreep(this.creep)} Max pipeline loop run reached`);
       return ERR_PIPELINE_MAX_RUN;
     }
-
-    /*
-    if (!this.factory) {
-      log.error(`${printCreep(creep)} No factory to create new pipeline task`);
-      return ERR_PIPELINE_INVALID_CONFIG;
-    }
-    */
 
     if (this.empty) {
       // Load pipeline from memory if required
@@ -104,8 +115,6 @@ export class TaskPipelineHandler {
         if (nextTask.run(this.creep)) {
           // Action finished
 
-          // log.debug(`${printCreep(this.creep)} task finished [${nextTask.name}], pipeline: ${this.pipeline.length}`);
-
           this.pipeline.shift(); // Remove the finished task
 
           // Save current pipeline change into memory
@@ -115,27 +124,7 @@ export class TaskPipelineHandler {
             // Other action is available
             return OK_PIPELINE_READY;
           }
-          /*
-          else {
-            // Pipeline is empty
-            this.pipeline = this.factory();
-            this.savePipeline(creep);
 
-            if (!this.empty) {
-
-              if (this.pipeline[0].name == nextTask.name) {
-                // New task is the same that old one
-                return OK;
-              }
-
-              // Other action is available
-              return OK_PIPELINE_READY;
-            } else {
-              return ERR_PIPELINE_EMPTY;
-            }
-
-          }
-          */
           return ERR_PIPELINE_EMPTY;
 
         } else {

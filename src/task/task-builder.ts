@@ -1,4 +1,5 @@
 import { Task, TaskTarget } from "./Task";
+import { AttackControllerTask } from "./tasks/AttackControllerTask";
 import { AttackTask } from "./tasks/AttackTask";
 import { BuildTask } from "./tasks/BuildTask";
 import { ClaimTask } from "./tasks/ClaimTask";
@@ -53,6 +54,10 @@ export class Tasks {
 
   static attack(target: AnyCreep | Structure<StructureConstant>) {
     return new AttackTask(target);
+  }
+
+  static attackController(target: TaskTarget) {
+    return new AttackControllerTask(target);
   }
 
   static build(target: ConstructionSite) {

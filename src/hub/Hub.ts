@@ -20,6 +20,7 @@ import { MineralArea } from "area/hub/mineral-area";
 import { Commander } from "Commander";
 import { Directive } from "directives/Directive";
 import { AgentFactoryRemoteArea } from "area/hub/agent-factory-remote";
+import { Settings } from "settings";
 
 interface HubMemory {
   bootstrap: boolean;
@@ -291,16 +292,24 @@ export class Hub {
 
   private cleanClaimerSource() {
 
-    if (this.spawns[0] && this.extentions.length > 4) {
-      // Remove claim directive if hub is autonomous
+    const claimFlag = Directive.getFlag(new RoomPosition(25, 25, this.room.name), 'claim');
 
-      const claimFlag = Directive.getFlag(new RoomPosition(25, 25, this.room.name), 'claim');
-      if (claimFlag) {
-        // Remove the claim goal
+    if (claimFlag) {
+
+      const hubClaimer = this.commander.hubs[(claimFlag.memory as any).hub];
+
+      const hasSpawn = this.spawns[0] != undefined;
+      const haveEnoughExtensions = this.extentions.length > 4;
+      const haveClaimerEnergy = hubClaimer && hubClaimer.storage && hubClaimer.storage.store.getUsedCapacity(RESOURCE_ENERGY) > Settings.hubStorageMinEnergy;
+
+      if (hasSpawn && (haveEnoughExtensions || !haveClaimerEnergy)) {
+        // Remove claim directive if hub is autonomous or claimer cannot support new hub colony
+
         const claimDirective = this.commander.directives[claimFlag.name];
         if (claimDirective) {
           claimDirective.remove();
         }
+
       }
 
     }

@@ -13,7 +13,7 @@ export interface AgentSetup {
 }
 
 export interface AgentRequestOptions {
-  reassignIdle?: boolean;
+  // reassignIdle?: boolean;
   noLifetimeFilter?: boolean;
   prespawn?: number;
   priority?: number;
@@ -150,27 +150,6 @@ export class Agent {
       const timeElasped = Game.cpu.getUsed() - start;
       hub.creepCPU += timeElasped;
     }, PROCESS_PRIORITY_LOW);
-
-    /*
-    this.lastRunTick = Game.time;
-
-    const result = this.taskPipelineHandler.run();
-
-    if (this.runCount++ >= Settings.creepMaxTaskRun) {
-      log.warning(`${this.print} too much run for this tick`);
-      return;
-    }
-
-    if (result == OK_PIPELINE_READY) {
-      // Other task should be run into the same tick
-      pushProcess(hub.processStack, () => {
-        const start = Game.cpu.getUsed();
-        this.run(hub);
-        const timeElasped = Game.cpu.getUsed() - start;
-        hub.creepCPU += timeElasped;
-      }, PROCESS_PRIORITY_LOW);
-    }
-    */
 
   }
 

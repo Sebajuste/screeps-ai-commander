@@ -77,7 +77,7 @@ export class ObserverDaemon extends Daemon {
 
   init(): void {
 
-    this.initNextRooms();
+    // this.initNextRooms();
 
   }
 
@@ -91,11 +91,11 @@ export class ObserverDaemon extends Daemon {
       return;
     }
 
-    log.debug(`${this.print} claim room: `, this.hub.memory.claimRoom);
-
     // Focus on claim room if necessary
     const claimRoom = this.hub.memory.claimRoom;
     if (claimRoom) {
+
+      log.debug(`${this.print} claim room: `, this.hub.memory.claimRoom);
 
       const haveCreep = _.find(Game.creeps, creep => creep.room.name == claimRoom) != undefined;
 
@@ -116,70 +116,28 @@ export class ObserverDaemon extends Daemon {
 
     const exploration = Exploration.exploration();
 
-    if (this.targetRoom) {
-      // If 1 room is already selected to be observed
-
-      // 1. Observe target room
-      const result = exploration.observerRoom(this.hubCenterArea.observer, this.targetRoom);
-      if (result != OK) {
-        log.error(`${this.print} Cannot observeRoom ${this.targetRoom}`);
-      }
-      this.targetRoom = undefined;
-      /*
-      const room = Game.rooms[this.targetRoom];
-      if (room) {
-        // If 1 room is visible, analyse it and reset target room
-        exploration.analyseRoom(room);
-        this.targetRoom = undefined;
-      } else {
-        // If 1 room is not visible, check if observer can observe it
-
-        const result = this.hubCenterArea.observer.observeRoom(this.targetRoom);
-        if (result != OK) {
-          log.error(`${this.print} Cannot observeRoom ${this.targetRoom}`);
-          // this.invalidRooms.push(this.targetRoom)
-          exploration.invalidRooms.push(this.targetRoom);
-          this.targetRoom = undefined;
-        }
-      }
-        */
-    }
-
-    if (!this.targetRoom) {
-      // If 1 room is not selected to be observed and observer exists
-
-      // Select a new room to observe based on 3 conditions:
-      // - Room must have been visited at least once
-      // - Room must need an update (based on its last update time and the room TTL) and 1 room is not in invalidRooms list
-      // - Room with the most recent tick should be selected
-
-      /*
-      const targetRoom = _.chain(Object.keys(exploration.getRooms()))//
-        .filter(roomName => exploration.needUpdate(roomName) && !this.invalidRooms.includes(roomName))//
-        .orderBy(roomInfo => exploration.getRoom(roomInfo)?.tick, ['desc'])//
-        .first()//
-        .value();
-      */
-      const targetRoom = exploration.nextRoom();
-
-      if (targetRoom) {
-        // If 1 room is found to be observed
-        this.targetRoom = targetRoom;
-        const result = this.hubCenterArea.observer.observeRoom(this.targetRoom);
-        if (result != OK) {
-          log.warning(`${this.print} Cannot observe Room : ${this.targetRoom}`);
-        }
-      }
-
-    }
-
     if (!this.targetRoom && this.nextRooms.length > 0) {
-      // If 1 room is not selected to be observed and there are rooms in the nextRooms list
+      // 1. Restore a saved room to look
       this.targetRoom = this.nextRooms.pop();
     }
 
     if (!this.targetRoom) {
-      // If 1 room is still not selected to be observed, suspend the daemon for 20 ticks
+      // 2. Search a new room from the global exporation goals
+      this.targetRoom = exploration.nextRoom(this.roomName);
+    }
+
+    if (this.targetRoom) {
+      // 3. Analyse the room or set the observer for next tick
+      const result = exploration.analyseObserverRoom(this.hubCenterArea.observer, this.targetRoom);
+      if (result == OK) {
+        // 4. Remove the target room if the room was analysed
+        this.targetRoom = undefined;
+      } else if (result != ERR_BUSY) {
+        log.error(`${this.print} Cannot observeRoom ${this.targetRoom}`);
+      }
+
+    } else {
+      // 5. If 1 room is still not selected to be observed, suspend the daemon for 20 ticks
       this.hub.dispatcher.suspendDaemon(this, 20);
     }
 

@@ -115,7 +115,7 @@ export class UpgradeDaemon extends Daemon {
     const outputRate = _.sum(this.agents.map(agent => countValidBodyPart(agent.creep, WORK))) * 2;
     this.resourceFlowStats.pushOutput(RESOURCE_ENERGY, outputRate);
 
-    if (this.link && this.link.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.upgradeMinLinkEnergy) { // && this.hub.controller.ticksToDowngrade < 50000
+    if (this.link && this.link.store.getUsedCapacity(RESOURCE_ENERGY) < Settings.upgradeMinLinkEnergy && (this.hub.links.length <= 2 || !this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > 1000)) { // && this.hub.controller.ticksToDowngrade < 50000
       // Request energy
       this.hub.linkNetwork.requestInput(this.link);
 
