@@ -53,9 +53,10 @@ export class TowerDaemon extends Daemon {
     });
     if (closestDamagedStructure) {
       for (const tower of this.hub.towers) {
-        if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > TowerDaemon.Settings.minimumEnergyRepair)
+        if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > TowerDaemon.Settings.minimumEnergyRepair && (!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > (this.room.energyCapacityAvailable / 2))) {
           // tower.repair(closestDamagedStructure);
           pushProcess(this.hub.processStack, () => tower.repair(closestDamagedStructure!), PROCESS_PRIORITY_LOW);
+        }
       }
     }
   }
@@ -101,7 +102,7 @@ export class TowerDaemon extends Daemon {
     }
 
     // repair
-    if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > TowerDaemon.Settings.minimumEnergyRepair) {
+    if (tower.store.getUsedCapacity(RESOURCE_ENERGY) > TowerDaemon.Settings.minimumEnergyRepair && (!this.hub.storage || this.hub.storage.store.getUsedCapacity(RESOURCE_ENERGY) > (this.room.energyCapacityAvailable / 2))) {
 
       if (structureDamaged) {
         pushProcess(this.hub.processStack, () => tower.repair(structureDamaged), PROCESS_PRIORITY_LOW);
@@ -141,9 +142,11 @@ export class TowerDaemon extends Daemon {
     const hostiles = this.hub.hostilesCreepsByRooms[this.pos.roomName] ?? [];
 
     if (hostiles.length > 0) {
+      // Attack
 
+
+      /*
       const avgHealing = CombatIntelligence.avgHostileHealingTo(hostiles);
-
       const possibleTargets = _.chain(hostiles)//
         .filter(hostile => {
           const damageTaken = CombatIntelligence.towerDamageAtPos(this.hub.towers, hostile.pos)!;
@@ -151,7 +154,7 @@ export class TowerDaemon extends Daemon {
           return damageTaken * damageMultiplier > avgHealing;
         })//
         .value();
-
+      */
       const target = CombatTargeting.findBestCreepTargetForTowers(this.hub, hostiles);
 
       if (target) {
@@ -160,15 +163,15 @@ export class TowerDaemon extends Daemon {
 
     }
 
+    const closestDamagedAlly = this.pos.findClosestByRange(_.filter(this.hub.agentByRoom[this.pos.roomName] ?? [], creep => creep.hits < creep.hitsMax));
+    if (closestDamagedAlly) {
+      // Heal
+      this.heal(closestDamagedAlly.creep);
+      return;
+    }
+
     if (this.hub.dispatcher.findActiveDaemonByName(DAEMON_BUILD_NAME) != undefined) {
       // Tower will repair only if repairer are not available
-
-      const closestDamagedAlly = this.pos.findClosestByRange(_.filter(this.hub.agentByRoom[this.pos.roomName] ?? [], creep => creep.hits < creep.hitsMax));
-      if (closestDamagedAlly) {
-        this.heal(closestDamagedAlly.creep);
-        return;
-      }
-
       this.repairNearestStructure();
     }
   }
