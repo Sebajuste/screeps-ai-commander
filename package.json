@@ -13,6 +13,7 @@
     "push-local": "rollup -c --environment DEST:localserver",
     "push-season": "rollup -c --environment DEST:season",
     "push-sim": "rollup -c --environment DEST:sim",
+    "push:of-dev": "SET NODE_ENV=development && npm run clean && rollup -c --environment DEST:official-dev",
     "push:of-sim": "SET NODE_ENV=development && npm run clean && rollup -c --environment DEST:official-sim",
     "push:of-main": "SET NODE_ENV=production && npm run clean && rollup -c --environment DEST:official-main",
     "push:ap-sim": "SET NODE_ENV=development && npm run clean && rollup -c --environment DEST:animapix-sim",

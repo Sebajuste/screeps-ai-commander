@@ -49,6 +49,9 @@ jobs:
           for v in SCREEPS_TOKEN SCREEPS_PROTOCOL SCREEPS_HOSTNAME SCREEPS_PORT SCREEPS_PATH SCREEPS_BRANCH; do
             [ -n "${!v}" ] || { echo "::error::${v#SCREEPS_} manquant dans l'environnement ${{ inputs.environment || 'official-main' }}"; exit 1; }
           done
+          # Un token colle depuis l'UI peut trainer un espace ou un retour ligne,
+          # que l'API rejette en Not Authorized. On normalise avant de l'ecrire.
+          SCREEPS_TOKEN=$(printf '%s' "$SCREEPS_TOKEN" | tr -d '[:space:]')
           echo "Deploiement vers $SCREEPS_HOSTNAME$SCREEPS_PATH (branche in-game: $SCREEPS_BRANCH)"
           jq -n \
             --arg token "$SCREEPS_TOKEN" \
