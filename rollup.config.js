@@ -10,16 +10,18 @@ import screeps from 'rollup-plugin-screeps';
 
 const pkg = require("./package.json");
 
-const isProduction = process.env.NODE_ENV.trim().toUpperCase() === 'PRODUCTION' || process.env.NODE_ENV.trim().toUpperCase() === 'PROD';
+// `SET NODE_ENV=x &&` leaves a trailing space, and the watch/push-local scripts set nothing at all.
+const nodeEnv = (process.env.NODE_ENV || 'development').trim().toUpperCase();
+const isProduction = nodeEnv === 'PRODUCTION' || nodeEnv === 'PROD';
 
 let cfg;
 const dest = process.env.DEST;
 if (!dest) {
-  console.log('\x1b[46m%s\x1b[0m \x1b[36m%s\x1b[0m', 'Compiling ...', '(deploy destination: none)');
+  console.log('\x1b[46m%s\x1b[0m \x1b[36m%s\x1b[0m', 'Compiling ...', `(${nodeEnv}, deploy destination: none)`);
 } else if ((cfg = require("./.screeps.json")[dest]) == null) {
   throw new Error("Invalid upload destination");
 } else {
-  console.log('\x1b[46m%s\x1b[0m \x1b[36m%s\x1b[0m', 'Compiling ...', `(deploy destination: ${dest})`);
+  console.log('\x1b[46m%s\x1b[0m \x1b[36m%s\x1b[0m', 'Compiling ...', `(${nodeEnv}, deploy destination: ${dest})`);
 }
 
 const ignoreWarnings = [
@@ -30,9 +32,9 @@ const ignoreWarnings = [
 ];
 
 const uglifyOptions = {
-  ecma: 5,
+  ecma: 2018,       // matches tsconfig target; ecma 5 forbade the shortest output forms
   enclose: false,
-  keep_classnames: false,
+  keep_classnames: true,  // screeps-profiler reads constructor names
   keep_fnames: false,
   module: false
 };
@@ -46,7 +48,6 @@ export default {
     resolve({ rootDir: "src" }),
     commonjs({
       namedExports: {
-        // 'src/Overmind_obfuscated': ['_Overmind'],
         'screeps-profiler': ['profiler'],
         'columnify': ['columnify']
       }
@@ -57,22 +58,25 @@ export default {
   ],
 
   onwarn: function (warning) {
-    // Skip default export warnings from using obfuscated overmind file in main
     for (let ignoreWarning of ignoreWarnings) {
       if (warning.toString().includes(ignoreWarning)) {
         return;
       }
     }
-    // console.warn everything else
     console.warn(warning.message);
   },
 
-  treeshake: false,
+  // Drops unused exports. moduleSideEffects stays on: traveler.js patches
+  // Creep.prototype at module level and must not be elided.
+  treeshake: {
+    moduleSideEffects: true
+  },
 
   output: [{
     file: pkg.main,
     format: "cjs",
-    sourcemap: true,
+    // The map is uploaded to the server as a second module (~600 KB). Dev only.
+    sourcemap: !isProduction,
     banner: "//\n" +
       "//             _____   _____                                          _           \n" +
       "//       /\\   |_   _| / ____|                                        | |          \n" +
