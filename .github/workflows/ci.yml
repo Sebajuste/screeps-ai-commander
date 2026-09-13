@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (dry run)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # No DEST: rollup-plugin-screeps runs in dryRun, nothing is uploaded.
+      # Compiling in production mode is what the release job does, so a PR
+      # that breaks the minified build fails here instead of on master.
+      - name: Build
+        run: npx rollup -c
+        env:
+          NODE_ENV: production
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: bundle-${{ github.sha }}
+          path: dist/
+          retention-days: 7
