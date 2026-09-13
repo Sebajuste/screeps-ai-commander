@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Destination screeps (environnement GitHub)
+        type: environment
+        required: true
+        default: official-main
+
+concurrency:
+  group: release-${{ inputs.environment || 'official-main' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'official-main' }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # rollup-plugin-screeps ne lit sa destination que dans .screeps.json, qui est
+      # gitignore. On le reconstruit depuis le secret et les variables de
+      # l'environnement. SCREEPS_PATH, et non PATH, pour ne pas ecraser le PATH du shell.
+      - name: Write screeps credentials
+        env:
+          SCREEPS_TOKEN: ${{ secrets.TOKEN }}
+          SCREEPS_PROTOCOL: ${{ vars.PROTOCOL }}
+          SCREEPS_HOSTNAME: ${{ vars.HOSTNAME }}
+          SCREEPS_PORT: ${{ vars.PORT }}
+          SCREEPS_PATH: ${{ vars.PATH }}
+          SCREEPS_BRANCH: ${{ vars.BRANCH }}
+        run: |
+          for v in SCREEPS_TOKEN SCREEPS_PROTOCOL SCREEPS_HOSTNAME SCREEPS_PORT SCREEPS_PATH SCREEPS_BRANCH; do
+            [ -n "${!v}" ] || { echo "::error::${v#SCREEPS_} manquant dans l'environnement ${{ inputs.environment || 'official-main' }}"; exit 1; }
+          done
+          echo "Deploiement vers $SCREEPS_HOSTNAME$SCREEPS_PATH (branche in-game: $SCREEPS_BRANCH)"
+          jq -n \
+            --arg token "$SCREEPS_TOKEN" \
+            --arg protocol "$SCREEPS_PROTOCOL" \
+            --arg hostname "$SCREEPS_HOSTNAME" \
+            --argjson port "$SCREEPS_PORT" \
+            --arg path "$SCREEPS_PATH" \
+            --arg branch "$SCREEPS_BRANCH" \
+            '{dest: {token: $token, protocol: $protocol, hostname: $hostname, port: $port, path: $path, branch: $branch}}' \
+            > .screeps.json
+
+      - name: Build and upload
+        run: npx rollup -c --environment DEST:dest
+        env:
+          NODE_ENV: production
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f .screeps.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.sha }}
+          path: dist/
+          retention-days: 90
+
+      # Tague sur la version de package.json : un merge qui ne la bouge pas
+      # redeploie sans creer de release.
+      - name: Create GitHub release
+        if: github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag deja publiee, rien a faire."
+            exit 0
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --generate-notes dist/main.js
