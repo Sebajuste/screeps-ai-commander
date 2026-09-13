@@ -46,7 +46,7 @@ export class HubCenterArea extends Area {
     if (this.link && this.storage) {
       this.daemons.router = new RouterDaemon(this, 10);
     }
-    if (this.observer) {
+    if (this.observer && this.hub.level >= 8) {
       this.daemons.observer = new ObserverDaemon(this);
     }
 

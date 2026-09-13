@@ -56,7 +56,7 @@ export class SupplyDaemon extends Daemon {
       return;
     }
 
-    const bodyParts = selectBodyParts(SUPPLY_TEMPLATE, this.hub.room.energyAvailable);
+    const bodyParts = selectBodyParts(SUPPLY_TEMPLATE, this.energyAvailable());
 
     const options = {
       priority: AGENT_PRIORITIES.supplier

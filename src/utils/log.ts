@@ -6,7 +6,7 @@ const fatalColor = '#d65156';
 
 export const LOG_MAX_PAD: number = 100;
 
-export const LOG_VSC = {repo: '@@_repo_@@', revision: '@@_revision_@@', valid: false};
+export const LOG_VSC = { repo: '@@_repo_@@', revision: '@@_revision_@@', valid: false };
 
 export const LOG_VSC_URL_TEMPLATE = (path: string, line: string) => {
 	return `${LOG_VSC.repo}/blob/${LOG_VSC.revision}/${path}#${line}`;
@@ -21,9 +21,24 @@ export enum LogLevels {
 }
 
 
-
 export function color(str: string, color: string): string {
 	return `<font color='${color}'>${str}</font>`;
+}
+
+export function censor(censor: any) {
+	var i = 0;
+
+	return function (key: string, value: any) {
+		if (i !== 0 && typeof (censor) === 'object' && typeof (value) == 'object' && censor == value)
+			return '[Circular]';
+
+		if (i >= 29) // seems to be a harded maximum of 30 serialized objects?
+			return '[Unknown]';
+
+		++i; // so we know we aren't using the original object anymore
+
+		return value;
+	}
 }
 
 interface SourcePos {
@@ -38,20 +53,20 @@ interface SourcePos {
 export function resolve(fileLine: string): SourcePos {
 	const split = _.trim(fileLine).match(stackLineRe);
 	if (!split || !Log.sourceMap) {
-		return {compiled: fileLine, final: fileLine} as SourcePos;
+		return { compiled: fileLine, final: fileLine } as SourcePos;
 	}
 
-	const pos = {column: parseInt(split[4], 10), line: parseInt(split[3], 10)};
+	const pos = { column: parseInt(split[4], 10), line: parseInt(split[3], 10) };
 
 	const original = Log.sourceMap.originalPositionFor(pos);
 	const line = `${split[1]} (${original.source}:${original.line})`;
 	const out = {
-		caller  : split[1],
+		caller: split[1],
 		compiled: fileLine,
-		final   : line,
-		line    : original.line,
+		final: line,
+		line: original.line,
 		original: line,
-		path    : original.source,
+		path: original.source,
 	};
 
 	return out;
@@ -83,34 +98,34 @@ function makeVSCLink(pos: SourcePos): string {
 
 export class Log {
 
-    static sourceMap: any;
+	static sourceMap: any;
 
-    private _maxFileString: number = 0;
+	private _maxFileString: number = 0;
 
-    get level(): number {
+	get level(): number {
 		// return Memory.settings.log.level;
-        return 4;
+		return 4;
 	}
 
-    get showTick(): boolean {
+	get showTick(): boolean {
 		// return Memory.settings.log.showTick;
-        return true;
+		return true;
 	}
 
-    get showSource(): boolean {
+	get showSource(): boolean {
 		// return Memory.settings.log.showSource;
-        return true;
+		return true;
 	}
 
-    private adjustFileLine(visibleText: string, line: string): string {
+	private adjustFileLine(visibleText: string, line: string): string {
 		const newPad = Math.max(visibleText.length, this._maxFileString);
 		this._maxFileString = Math.min(newPad, LOG_MAX_PAD);
 
 		// return `|${_.padRight(line, line.length + this._maxFileString - visibleText.length, ' ')}|`;
-        return `|${line.padEnd(line.length + this._maxFileString - visibleText.length, ' ')}`;
+		return `|${line.padEnd(line.length + this._maxFileString - visibleText.length, ' ')}`;
 	}
 
-    private buildArguments(level: number): string[] {
+	private buildArguments(level: number): string[] {
 		const out: string[] = [];
 		switch (level) {
 			case LogLevels.ERROR:
@@ -143,7 +158,7 @@ export class Log {
 		return out;
 	}
 
-    getFileLine(upStack = 4): string {
+	getFileLine(upStack = 4): string {
 		const stack = new Error('').stack;
 
 		if (stack) {
@@ -161,41 +176,41 @@ export class Log {
 		return '';
 	}
 
-    debug(...args: any[]) {
-        if (this.level >= LogLevels.DEBUG) {
+	debug(...args: any[]) {
+		if (this.level >= LogLevels.DEBUG) {
 			console.log.apply(this, this.buildArguments(LogLevels.DEBUG).concat([].slice.call(args)));
 		}
-    }
+	}
 
-    info(...args: any[]) {
-        if (this.level >= LogLevels.INFO) {
+	info(...args: any[]) {
+		if (this.level >= LogLevels.INFO) {
 			console.log.apply(this, this.buildArguments(LogLevels.INFO).concat([].slice.call(args)));
 		}
-    }
+	}
 
-    alert(...args: any[]) {
-        if (this.level >= LogLevels.ALERT) {
+	alert(...args: any[]) {
+		if (this.level >= LogLevels.ALERT) {
 			console.log.apply(this, this.buildArguments(LogLevels.ALERT).concat([].slice.call(args)));
 		}
-    }
+	}
 
-    warning(...args: any[]) {
-        if (this.level >= LogLevels.WARNING) {
+	warning(...args: any[]) {
+		if (this.level >= LogLevels.WARNING) {
 			console.log.apply(this, this.buildArguments(LogLevels.WARNING).concat([].slice.call(args)));
 		}
-    }
+	}
 
-    error(...args: any[]) {
-        if (this.level >= LogLevels.ERROR) {
+	error(...args: any[]) {
+		if (this.level >= LogLevels.ERROR) {
 			console.log.apply(this, this.buildArguments(LogLevels.ERROR).concat([].slice.call(args)));
 		}
-    }
+	}
 
 	fatal(...args: any[]) {
-        if (this.level >= FATAL) {
+		if (this.level >= FATAL) {
 			console.log.apply(this, this.buildArguments(FATAL).concat([].slice.call(args)));
 		}
-    }
+	}
 
 }
 

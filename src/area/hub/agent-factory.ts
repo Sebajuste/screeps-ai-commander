@@ -6,7 +6,7 @@ import { Hub } from "hub/Hub";
 import _ from "lodash";
 import { Mem } from "memory/Memory";
 import { Settings } from "settings";
-import { log } from "utils/log";
+import { censor, log } from "utils/log";
 import { exponentialMovingAverage } from "utils/stats";
 
 
@@ -99,7 +99,8 @@ export class AgentFactoryArea extends Area {
   }
 
   energyAvailable() {
-    return this.room.energyAvailable;
+    // return this.room.energyAvailable;
+    return Math.min(this.room.energyAvailable, this.room.energyCapacityAvailable);
   }
 
   generateProtoCreep(setup: AgentSetup, daemon: Daemon, memory?: any): ProtoCreep {
@@ -164,6 +165,7 @@ export class AgentFactoryArea extends Area {
 
     protoCreep.name = `${protoCreep.name}/${Game.time}`; // modify the creep name to make it unique
     if (bodyCost(protoCreep.body) > this.room.energyCapacityAvailable) {
+      log.warning(`${this.print} ERR_ROOM_ENERGY_CAPACITY_NOT_ENOUGH`);
       return ERR_ROOM_ENERGY_CAPACITY_NOT_ENOUGH;
     }
     //protoCreep.memory.data.origin = spawnToUse.pos.roomName;
@@ -173,8 +175,10 @@ export class AgentFactoryArea extends Area {
       // energyStructures: this.energyStructures,
       directions: options.directions
     } as SpawnOptions);
-    // const result = OK;
+
     if (result == OK) {
+      return result;
+    } else if (result == ERR_RCL_NOT_ENOUGH) {
       return result;
     } else {
       this.availableSpawns.unshift(spawnToUse); // return the spawn to the available spawns list
@@ -207,9 +211,12 @@ export class AgentFactoryArea extends Area {
           return result; // continue to spawn other things while waiting on specified spawn
         } else if (result == ERR_INVALID_ARGS) {
           log.error(`${this.print} Invalid argument to spawn creeps : `, JSON.stringify(nextOrder));
+        } else if (result == ERR_RCL_NOT_ENOUGH) {
+          this.productionQueue[priority].unshift(nextOrder);
+          return result; // try to spawn the order on other spawner
         } else if (result != ERR_ROOM_ENERGY_CAPACITY_NOT_ENOUGH) {
           // If there's not enough energyCapacity to spawn, ignore it and move on, otherwise block and wait
-          log.warning(`${this.print} Cannot spawn : Not enough energy`)
+          log.warning(`${this.print} Cannot spawn. Error : ${result} [energyAvailable=${this.room.energyAvailable}, protoCreep=${JSON.stringify(protoCreep)}, cost=${bodyCost(protoCreep.body)}]`)
           this.productionQueue[priority].unshift(nextOrder);
           return result;
         } else {
@@ -239,7 +246,7 @@ export class AgentFactoryArea extends Area {
       if (result == ERR_NOT_ENOUGH_ENERGY) { // if you can't spawn something you want to
         this.isOverloaded = true;
       }
-      if (result != OK && result != ERR_SPECIFIED_SPAWN_BUSY) {
+      if (result != OK && result != ERR_SPECIFIED_SPAWN_BUSY && result != ERR_RCL_NOT_ENOUGH) {
         // Can't spawn creep right now
         break;
       }
@@ -296,7 +303,12 @@ export class AgentFactoryArea extends Area {
       } as SpawnOrder;
       this.productionQueue[priority].push(order);
     } else {
-      log.error(`${this.room.name}: cannot spawn creep ${protoCreep.name} with body ` + `${JSON.stringify(protoCreep.body)}! Request : ${JSON.stringify(request)}`);
+      log.warning(`${this.room.name}: cannot spawn creep ${protoCreep.name} with body ` + `${JSON.stringify(protoCreep.body)}. canSpawn=${this.canSpawn(protoCreep.body)} | protoCreep.body.length=${protoCreep.body.length}`);
+      try {
+        log.warning(`> Request : ${JSON.stringify(request, censor(request))}`)
+      } catch (e) {
+        log.error(e);
+      }
     }
   }
 

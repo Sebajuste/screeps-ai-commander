@@ -1,8 +1,6 @@
-import { ObserverDaemon } from "daemons/expend/observer-daemon";
 import _, { Dictionary } from "lodash";
 import { Mem } from "memory/Memory";
 import { DistanceTransform } from "utils/distance-transform";
-import { log } from "utils/log";
 import { getRoomRange } from "utils/util-pos";
 
 

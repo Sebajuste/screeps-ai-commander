@@ -1,5 +1,5 @@
 import { AgentRequestOptions, AgentSetup } from "agent/Agent";
-import { countBodyPart, countValidBodyPart, selectBodyParts } from "agent/agent-builder";
+import { BodyTemplate, countBodyPart, countValidBodyPart, selectBodyParts } from "agent/agent-builder";
 import { AGENT_PRIORITIES, HAULER_TEMPLATE, UPGRADER_BATTERY_TEMPLATE, UPGRADER_BOOST_TEMPLATE, UPGRADER_LOW_TEMPLATE, UPGRADER_REMOTE_TEMPLATE, UPGRADER_TEMPLATE } from "agent/agent-setup";
 import { UpgradeRole } from "agent/roles/roles";
 import { UpgradeArea } from "area/hub/upgrade-area";
@@ -42,7 +42,7 @@ export class UpgradeDaemon extends Daemon {
     return null;
   }
 
-  private selectTemplate() {
+  private selectTemplate(): BodyTemplate {
 
     const spawner = this.hub.areas.agentFactory;
 
@@ -87,9 +87,7 @@ export class UpgradeDaemon extends Daemon {
     };
 
     if (isHubMaxLevel) {
-      // if (this.hub.controller.ticksToDowngrade < 100000) {
       this.wishList(1, setup, options);
-      // }
       return;
     }
 

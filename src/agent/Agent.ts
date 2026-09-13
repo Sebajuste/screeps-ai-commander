@@ -5,11 +5,12 @@ import { OK_PIPELINE_READY, TaskPipeline, TaskPipelineHandler } from "task/task-
 import { PROCESS_PRIORITY_LOW, pushProcess } from "cpu/process";
 import { Hub } from "hub/Hub";
 import { Settings } from "settings";
+import { BodyParts } from "./agent-builder";
 
 
 export interface AgentSetup {
   role: string;
-  bodyParts: BodyPartConstant[],
+  bodyParts: BodyParts,
 }
 
 export interface AgentRequestOptions {
